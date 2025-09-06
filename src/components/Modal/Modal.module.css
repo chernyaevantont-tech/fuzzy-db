@@ -1,0 +1,36 @@
+.ModalWrapper {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.Modal {
+    position: relative;
+    padding: 40px 25px 25px;
+    border-radius: 15px;
+    min-width: 250px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--panel-color);
+    box-shadow: 0;
+    transform: translateZ(0);
+    border: solid 3px var(--accent-color);
+}
+
+.Cross {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 30px;
+    height: 30px;
+    color: var(--icon-color);
+    cursor: pointer;
+}

@@ -1,0 +1,53 @@
+.AppTitle {
+    position: block;
+    top: 0;
+    left: 0;
+    right: 0;
+    user-select: none;
+    display: flex;
+    justify-content: space-between;
+    width: 100vw;
+    height: 35px;
+
+    background-color: var(--panel-color);
+    border-bottom: solid 1px var(--border-color);
+    z-index: 998;
+}
+
+.Left {
+    display: flex;
+    width: 50vw;
+    justify-content: flex-start;
+    background-color: inherit;
+    align-items: center;
+}
+
+.Right {
+    display: flex;
+    width: 50vw;
+    justify-content: flex-end;
+    background-color: inherit;
+    align-items: center;
+}
+
+.AppTitleMaximized {
+    margin-top: -1px;
+}
+
+.Icon {
+    height: 35px;
+    width: 45px;
+    padding: 10px 0;
+    color: var(--titlebar-icon-color);
+    z-index: 1000;
+    margin-bottom: 1px;
+}
+
+.Icon:hover {
+    background-color: var(--titlebar-icon-hover-background-color);
+}
+
+.Icon.Quit:hover {
+    background-color: var(--titlebar-icon-quit-hover-background-color);
+    color: white;
+}

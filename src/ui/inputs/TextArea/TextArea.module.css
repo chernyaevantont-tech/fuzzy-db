@@ -1,0 +1,30 @@
+.TextArea {
+    background-color: var(--panel-color);
+    border: solid 1px var(--border-color);
+    outline: none;
+    color: var(--text-color);
+    padding: 5px;
+    min-height: 35px;
+}
+
+.UnactiveTextArea {
+    color: var(--unactive-text-color);
+}
+
+.LabelWrapper {
+    position: relative;
+}
+
+.LabelWrapper label {
+    display: block;
+    z-index: 99999;
+    width: fit-content;
+    position: absolute;
+    left: 1px;
+    top: 0;
+    font-size: 0.8rem;
+    color: var(--border-color);
+    user-select: none;
+    padding-right: 1px;
+    overflow-y: auto;
+}

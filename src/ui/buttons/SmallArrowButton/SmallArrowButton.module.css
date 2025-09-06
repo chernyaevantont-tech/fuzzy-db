@@ -1,0 +1,55 @@
+.Button {
+    outline: none;
+    border: 0;
+    background-color: transparent;
+}
+
+.Arrow {
+    width: 14px;
+    height: 18px;
+    position: relative;
+    cursor: pointer;
+}
+
+.Arrow::before {
+    content: "";
+    width: 80%;
+    height: 15%;
+    background-color: #dee2e6;
+    position: absolute;
+    left: 5%;
+    rotate: -40deg;
+    margin-top: 34%;
+    border-radius: 2px;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.Arrow:hover::before {
+    background-color: var(--accent-color);
+}
+
+
+.Arrow::after {
+    content: "";
+    width: 80%;
+    height: 15%;
+    background-color: #dee2e6;
+    position: absolute;
+    left: 5%;
+    rotate: 40deg;
+    margin-top: 80%;
+    border-radius: 2px;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.Arrow:hover::after {
+    background-color: var(--accent-color);
+}
+
+.Arrow:active::before{
+    background-color: var(--accent-color-selected);
+}
+
+.Arrow:active::after{
+    background-color: var(--accent-color-selected);
+}

@@ -1,0 +1,12 @@
+.ProblemCardList {
+    height: calc(100% - 35px);
+    padding: 10px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.ProblemCardList * {
+    flex-shrink: 0;
+}

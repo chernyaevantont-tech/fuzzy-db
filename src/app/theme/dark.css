@@ -1,0 +1,21 @@
+html[data-theme='dark'] {
+    --panel-color: #222222;
+    --selected-panel-color: #292929;
+
+    --background-color: #2c2c2c;
+    
+    --header-color: #1f1f1f;
+    --selected-header-color: #2c2c2c;
+
+    --text-color: white;
+    --unactive-text-color: rgb(175, 175, 175);
+
+    --icon-color: rgb(225, 225, 225);
+    --unactive-icon-color:rgb(200, 200, 200);
+
+    --titlebar-icon-color: rgb(211, 211, 211);
+    --titlebar-icon-hover-background-color: #373737;
+    --titlebar-icon-quit-hover-background-color: rgb(181, 0, 0);
+
+    --canvas-background-color: #bbbbbb;
+}

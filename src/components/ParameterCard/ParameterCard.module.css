@@ -1,0 +1,44 @@
+.ParameterCard {
+    width: 100%;
+    height: fit-content;
+    background-color: var(--panel-color);
+    border: solid 1px var(--border-color);
+    padding: 10px;
+}
+
+.Top {
+    display: flex;
+    flex-direction: row;
+    gap: 5px;
+    align-items: center;
+}
+
+.Name {
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    max-width: 100%;
+    word-break: break-all;
+}
+
+.Container {
+    padding-top: 10px;
+}
+
+.Icon {
+    cursor: pointer;
+    color: var(--border-color)
+}
+
+.StartEndContainer {
+    display: flex;
+    justify-content: start;
+    flex-direction: row;
+    gap: 20px;
+}
+
+.Input {
+    width: 200px;
+}

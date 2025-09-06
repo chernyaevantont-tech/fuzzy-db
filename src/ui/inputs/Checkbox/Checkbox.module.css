@@ -1,0 +1,35 @@
+.Checkbox {
+    display: block;
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #dee2e6;
+    border-radius: 7px;
+    background-color: #fff;
+    cursor: pointer;
+    transition: color 0.2s ease-in-out, background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    margin: 0;
+    background-repeat: unset;
+    background-size: cover;
+}
+
+.Checkbox:hover {
+    background-color: var(--accent-color-focused);
+}
+
+.Checkbox:checked {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+.Checkbox:active {
+    background-color: var(--accent-color-selected);
+    border-color: var(--accent-color);
+}
+
+.Checkbox:disabled {
+    filter: none;
+    opacity: 0.5;
+    cursor: not-allowed;
+}

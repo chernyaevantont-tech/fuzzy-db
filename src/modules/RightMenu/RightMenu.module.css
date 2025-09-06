@@ -1,0 +1,35 @@
+.Menu {
+    width: 35px;
+    height: 100%;
+    border-left: solid 1px var(--border-color);
+    background-color: var(--panel-color);
+    z-index: 998;
+    padding: 10px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: start;
+    gap: 10px;
+    overflow-x: hidden;
+    padding-right: 1px;
+}
+
+.Unit {
+    width: 35px;
+    height: 35px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.Unit * {
+    cursor: pointer;
+    width: 25px;
+    height: 25px;
+    color: var(--accent-color);
+}
+
+.Separator {
+    width: 100%;
+    color: var(--border-color);
+}

@@ -1,0 +1,51 @@
+.Navigation {
+    width: calc(100% - 30px);
+    height: 25px;
+    flex-shrink: 0;
+    border: solid 2px var(--accent-color);
+    border-radius: 10px;
+    display: flex;
+    padding: 0 10px;
+    align-items: center;
+    color: var(--unactive-text-color);
+    overflow-x: auto;
+}
+
+.Navigation * {
+    flex-shrink: 0;
+}
+
+.Navigation::-webkit-scrollbar {
+    height: 0px;
+}
+
+.NavigationText {
+    user-select: none;
+    cursor: pointer;
+    color: var(--unactive-text-color);
+}
+
+.NavigationText:hover {
+    color: var(--text-color);
+    text-decoration: underline;
+}
+
+.Icon {
+    flex-shrink: 0;
+    height: 20px;
+    width: 20px;
+}
+
+.NavigationIcon {
+    cursor: pointer;
+    color: var(--unactive-text-color);
+}
+
+.NavigationIcon:hover {
+    color: var(--text-color);
+}
+
+.AngleIcon {
+    height: 15px;
+    width: 15px;
+}

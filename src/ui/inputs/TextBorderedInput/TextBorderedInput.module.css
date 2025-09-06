@@ -1,0 +1,75 @@
+.TextBorderedInput {
+    position: relative;
+    height: fit-content;
+    border: solid 2px var(--border-color);
+    background-color: var(--panel-color);
+    outline: none;
+    min-height: 35px;
+    font-size: 1rem;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    border-radius: 10px;
+}
+
+.Input {
+    color: var(--text-color);
+    border: 0;
+    outline: 0;
+    width: 100%;
+    padding: 0 5px;
+    background-color: var(--panel-color);
+}
+
+.Input:-webkit-autofill,
+.Inputput:-webkit-autofill:hover, 
+.Input:-webkit-autofill:focus, 
+.Input:-webkit-autofill:active{
+    -webkit-box-shadow: 0 0 0 30px var(--panel-color) inset !important;
+    -webkit-text-fill-color: var(--text-color) !important;
+}
+
+.Label {
+    display: block;
+    width: fit-content;
+    position: absolute;
+    background-color: var(--panel-color);
+    top: -0.65rem;
+    left: 10px;
+    padding: 0 2px;
+    font-size: 0.8rem;
+    color: var(--border-color);
+    user-select: none;
+}
+
+.Wrong {
+    color: red !important;
+    border-color: red !important;
+}
+
+.Wrong > input::placeholder {
+    color: red !important;
+}
+
+.WrongMessage {
+    font-size: 0.8rem;
+    transition: all 0.2s ease-in-out;
+    padding-left: 5px;
+    position: absolute;
+    bottom: -1.2rem;
+    user-select: none;
+}
+
+.RightIconWrapper {
+    height: 1.2rem;
+    transition: color 0.2s ease-in-out;
+    color: var(--border-color);
+    display: flex;
+    align-items: center;
+    margin-right: 5px;
+}
+
+.RightIconWrapper * {
+    width: 100%;
+    height: 100%;
+}

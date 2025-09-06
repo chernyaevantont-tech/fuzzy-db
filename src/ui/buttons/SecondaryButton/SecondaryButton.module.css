@@ -1,0 +1,18 @@
+.SecondaryButton {
+    background-color: transparent;
+    color: var(--text-color);
+    border: solid 3px var(--accent-color);
+    font-weight: 400;
+    cursor: pointer;
+    transition: border-color 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+.SecondaryButton:hover {
+    border-color: var(--accent-color-focused);
+    color: var(--accent-color-focused);
+}
+
+.SecondaryButton:active {
+    border-color: var(--accent-color-selected);
+    color: var(--accent-color-selected);
+}

@@ -1,0 +1,20 @@
+* {
+  padding: 0;
+  margin: 0;
+  font-family: NTSomic-Regular;
+  box-sizing: border-box;
+  /* transition: background-color 0.2s ease-in-out 0s, color 0.2s ease-in-out 0s; */
+  /* overflow-y: hidden; */
+}
+
+:root {
+  --accent-color: #2a9134;
+  --accent-color-focused: #3fa34d;
+  --accent-color-selected: #5bba6f;
+  --border-color: rgb(129, 129, 129);
+}
+
+@font-face {
+  font-family: NTSomic-Regular;
+  src: url("./fonts/NTSomic-Regular.ttf");
+}

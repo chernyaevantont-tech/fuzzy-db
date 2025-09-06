@@ -1,0 +1,16 @@
+.ImageContainer {
+    background-position: center;
+    background-size: cover;
+}
+
+.ImagePlaceholder {
+    border: solid 1px var(--border-color);
+    display: flex;
+}
+
+.ImageIcon {
+    margin: auto;
+    width: 30%;
+    height: 30%;
+    color: var(--border-color);
+}
