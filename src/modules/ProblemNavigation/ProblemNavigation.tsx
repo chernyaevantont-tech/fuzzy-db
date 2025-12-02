@@ -25,7 +25,7 @@ const ProblemNavigation: React.FC<ProblemNavigationProps> = () => {
                 }
             />
             {
-                problemPath.map((p, index) => <>
+                problemPath.map((p, index) => <div key={p.id} className={classes.NavigationUnit}>
                     <FaAngleRight className={classes.AngleIcon} />
                     <div onClick={() => {
                         if (goToProblemByIndex(index)) {
@@ -37,7 +37,7 @@ const ProblemNavigation: React.FC<ProblemNavigationProps> = () => {
                     >
                         {p.name}
                     </div>
-                </>)
+                </div>)
             }
         </div>
     );

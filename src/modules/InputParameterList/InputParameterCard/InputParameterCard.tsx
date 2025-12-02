@@ -7,6 +7,7 @@ import { updateInputParameterById } from '../../../api/input_parameter/updateInp
 import { removeInputParameterById } from '../../../api/input_parameter/removeInputParameterById';
 import InputValueUnit from './InputValueUnit/InputValueUnit';
 import { InputValueResponse } from '../../../types/input_value';
+import FuzzyGraph from '../../../components/FuzzyGraph/FuzzyGraph';
 
 interface InputParameterCardProps {
     inputParameter: InputParameterResponse;
@@ -29,6 +30,7 @@ const InputParameterCard: React.FC<InputParameterCardProps> = ({ inputParameter,
             end={inputParameter.end}
             removeCallback={() => removeInputParameterById(inputParameter.id, deleteCallback)}
         >
+            <FuzzyGraph start={inputParameter.start} end={inputParameter.end} units={inputParameter.input_values} />
             {
                 inputParameter.input_values.map((inputValue, index) =>
                     <InputValueUnit
@@ -37,7 +39,7 @@ const InputParameterCard: React.FC<InputParameterCardProps> = ({ inputParameter,
                         setInputValue={(value: InputValueResponse) => {
                             const newInputValues = [...inputParameter.input_values];
                             newInputValues.splice(index, 1, value);
-                            setInputParameter({...inputParameter, input_values: newInputValues});
+                            setInputParameter({ ...inputParameter, input_values: newInputValues });
                         }}
                         deleteCallback={() => null}
                     />
