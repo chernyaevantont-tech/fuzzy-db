@@ -1,0 +1,229 @@
+.FuzzyEvaluationPage {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.Section {
+    background: var(--primary-background-color);
+    border-radius: 8px;
+    padding: 20px;
+    border: 1px solid var(--border-color);
+}
+
+.SectionTitle {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 15px;
+    color: var(--text-color);
+}
+
+.InputGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 15px;
+}
+
+.InputCard {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 15px;
+    background: var(--secondary-background-color);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+
+.InputLabel {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.InputRange {
+    font-size: 12px;
+    color: var(--unactive-text-color);
+}
+
+.InputField {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.NumberInput {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--primary-background-color);
+    color: var(--text-color);
+    font-size: 14px;
+}
+
+.NumberInput:focus {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
+.MethodSelector {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.MethodLabel {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.MethodSelect {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--primary-background-color);
+    color: var(--text-color);
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.MethodSelect:focus {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
+.EvaluateButton {
+    padding: 12px 24px;
+    background: var(--accent-color);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.EvaluateButton:hover:not(:disabled) {
+    opacity: 0.9;
+}
+
+.EvaluateButton:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.ResultsSection {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.OutputCard {
+    background: var(--secondary-background-color);
+    border-radius: 6px;
+    padding: 15px;
+    border: 1px solid var(--border-color);
+}
+
+.OutputHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.OutputName {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.OutputValue {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--accent-color);
+}
+
+.OutputDetails {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-color);
+}
+
+.DetailRow {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--unactive-text-color);
+}
+
+.FuzzifiedInputs {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.FuzzifiedInput {
+    background: var(--primary-background-color);
+    padding: 10px;
+    border-radius: 4px;
+}
+
+.FuzzifiedInputName {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-color);
+    margin-bottom: 5px;
+}
+
+.MembershipList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.MembershipItem {
+    display: flex;
+    gap: 4px;
+    font-size: 12px;
+    padding: 4px 8px;
+    background: var(--secondary-background-color);
+    border-radius: 4px;
+}
+
+.MembershipTerm {
+    color: var(--text-color);
+}
+
+.MembershipDegree {
+    color: var(--accent-color);
+    font-weight: 500;
+}
+
+.ErrorMessage {
+    color: #e74c3c;
+    padding: 15px;
+    background: rgba(231, 76, 60, 0.1);
+    border-radius: 6px;
+    border: 1px solid rgba(231, 76, 60, 0.3);
+}
+
+.LoadingMessage {
+    color: var(--unactive-text-color);
+    text-align: center;
+    padding: 20px;
+}
+
+.NoProblem {
+    text-align: center;
+    color: var(--unactive-text-color);
+    padding: 40px;
+}

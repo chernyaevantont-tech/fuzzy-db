@@ -4,7 +4,10 @@ pub mod domain;
 pub mod infrastructure;
 
 use infrastructure::state::AppState;
-use infrastructure::tauri::commands::{problem::*, input_value::*, image::*, input_parameter::*};
+use infrastructure::tauri::commands::{
+    fuzzy_inference::*, fuzzy_output_value::*, image::*, input_parameter::*, input_value::*,
+    output_parameter::*, problem::*,
+};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -25,6 +28,15 @@ pub fn run() {
             remove_input_parameter_by_id,
             update_input_parameter_by_id,
             create_input_value,
+            remove_input_value_by_id,
+            update_input_value_by_id,
+            create_output_parameter,
+            remove_output_parameter_by_id,
+            update_output_parameter_by_id,
+            create_fuzzy_output_value,
+            remove_fuzzy_output_value_by_id,
+            update_fuzzy_output_value_by_id,
+            evaluate_fuzzy_system,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

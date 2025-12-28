@@ -5,6 +5,7 @@ use std::fmt;
 pub enum DomainError {
     NotFound(String),
     Validation(String),
+    ValidationError(String),
     Data(String),
     Internal(String),
 }
@@ -14,6 +15,7 @@ impl fmt::Display for DomainError {
         match self {
             DomainError::NotFound(msg) => write!(f, "Not found: {}", msg),
             DomainError::Validation(msg) => write!(f, "Validation error: {}", msg),
+            DomainError::ValidationError(msg) => write!(f, "Validation error: {}", msg),
             DomainError::Data(msg) => write!(f, "Data error: {}", msg),
             DomainError::Internal(msg) => write!(f, "Internal error: {}", msg),
         }

@@ -5,11 +5,13 @@ import InputParameterCard from './InputParameterCard/InputParameterCard';
 interface InputParameterListProps {
     inputParameters: Array<InputParameterResponse>,
     setInputParameters: (value: InputParameterResponse[]) => void,
+    refetchData: () => void,
 }
 
 const InputParameterList: React.FC<InputParameterListProps> = ({
     inputParameters,
     setInputParameters,
+    refetchData,
 }) => {
     return (
         <div className={classes.InputParameterList}>
@@ -27,6 +29,7 @@ const InputParameterList: React.FC<InputParameterListProps> = ({
                             const newInputParameters = [...inputParameters];
                             setInputParameters(newInputParameters.filter(x => x.id != id));
                         }}
+                        refetchData={refetchData}
                         key={inputParameter.id}
                     />
                 )

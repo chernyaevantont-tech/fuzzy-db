@@ -4,9 +4,17 @@ use std::{
 };
 
 use crate::{
-    domain::repository::{ImageRepository, InputParameterRepository, InputValueRepository, ProblemRepository},
+    domain::repository::{
+        FuzzyOutputValueRepository, ImageRepository, InputParameterRepository,
+        InputValueRepository, OutputParameterRepository, ProblemRepository,
+    },
     infrastructure::repository::sqlite::{
-        image_repository::SqliteImageRepository, input_parameter_repository::SqliteInputParameterRepository, input_value_repository::SqliteInputValueRepository, problem_repository::SqliteProblemRepository
+        fuzzy_output_value_repository::SqliteFuzzyOutputValueRepository,
+        image_repository::SqliteImageRepository,
+        input_parameter_repository::SqliteInputParameterRepository,
+        input_value_repository::SqliteInputValueRepository,
+        output_parameter_repository::SqliteOutputParameterRepository,
+        problem_repository::SqliteProblemRepository,
     },
 };
 
@@ -14,6 +22,8 @@ pub struct AppState {
     pub problem_repository: Box<dyn ProblemRepository>,
     pub input_parameter_repository: Box<dyn InputParameterRepository>,
     pub input_value_repository: Box<dyn InputValueRepository>,
+    pub output_parameter_repository: Box<dyn OutputParameterRepository>,
+    pub fuzzy_output_value_repository: Box<dyn FuzzyOutputValueRepository>,
     pub image_repository: Box<dyn ImageRepository>,
 }
 
@@ -99,6 +109,8 @@ impl AppState {
             problem_repository: Box::new(SqliteProblemRepository::new(Arc::clone(&shared_conn))),
             input_parameter_repository: Box::new(SqliteInputParameterRepository::new(Arc::clone(&shared_conn))),
             input_value_repository: Box::new(SqliteInputValueRepository::new(Arc::clone(&shared_conn))),
+            output_parameter_repository: Box::new(SqliteOutputParameterRepository::new(Arc::clone(&shared_conn))),
+            fuzzy_output_value_repository: Box::new(SqliteFuzzyOutputValueRepository::create(Arc::clone(&shared_conn))),
             image_repository: Box::new(SqliteImageRepository::new(Arc::clone(&shared_conn))),
         }
     }

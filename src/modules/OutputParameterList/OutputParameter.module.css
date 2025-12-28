@@ -1,0 +1,13 @@
+.OutputParameterList {
+    width: 100%;
+    height: calc(100% - 35px);
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+}
+
+.OutputParameterList * {
+    flex-shrink: 0;
+}

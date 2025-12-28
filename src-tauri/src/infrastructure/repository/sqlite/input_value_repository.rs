@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use rusqlite::{params, Connection, ErrorCode};
+use rusqlite::{params, Connection};
 
 use crate::domain::{
     entities::input_value::InputValue, error::DomainError, repository::InputValueRepository,
@@ -144,11 +144,10 @@ impl InputValueRepository for SqliteInputValueRepository {
                 }
 
                 for output_parameter_id in output_parameter_ids {
-                    let mut stmt = transaction.prepare("INSERT INTO output_value (output_parameter_id, input_value_ids, value) VALUES (?, ?, ?)") .map_err(|e| DomainError::Internal(e.to_string()))?;
+                    let mut stmt = transaction.prepare("INSERT INTO output_value (output_parameter_id, input_value_ids) VALUES (?, ?)") .map_err(|e| DomainError::Internal(e.to_string()))?;
                     stmt.execute(params![
                         &output_parameter_id,
-                        format!("|{}|", &new_input_value_id),
-                        ""
+                        format!("|{}|", &new_input_value_id)
                     ])
                     .map_err(|e| DomainError::Internal(e.to_string()))?;
                 }
@@ -197,11 +196,10 @@ impl InputValueRepository for SqliteInputValueRepository {
                             .map(|n| n.to_string())
                             .collect::<Vec<String>>()
                             .join("||");
-                        let mut stmt = transaction.prepare("INSERT INTO output_value (output_parameter_id, input_value_ids, value) VALUES (?, ?, ?)") .map_err(|e| DomainError::Internal(e.to_string()))?;
+                        let mut stmt = transaction.prepare("INSERT INTO output_value (output_parameter_id, input_value_ids) VALUES (?, ?)") .map_err(|e| DomainError::Internal(e.to_string()))?;
                         stmt.execute(params![
                             &output_parameter_id,
-                            format!("|{input_value_ids}|"),
-                            ""
+                            format!("|{input_value_ids}|")
                         ])
                         .map_err(|e| DomainError::Internal(e.to_string()))?;
                     }
@@ -262,8 +260,8 @@ impl InputValueRepository for SqliteInputValueRepository {
 
                 let prev_result: Result<(i64, f32, f32, f32, f32), rusqlite::Error> = transaction
                     .query_row(
-                    "SELECT id, a, b, c, d FROM input_value WHERE a < ? ORDER BY a DESC LIMIT 1",
-                    params![a],
+                    "SELECT id, a, b, c, d FROM input_value WHERE input_parameter_id = ? AND a < ? ORDER BY a DESC LIMIT 1",
+                    params![input_parameter_id, a],
                     |row| {
                         Ok((
                             row.get(0)?,
@@ -277,8 +275,8 @@ impl InputValueRepository for SqliteInputValueRepository {
 
                 let next_result: Result<(i64, f32, f32, f32, f32), rusqlite::Error> = transaction
                     .query_row(
-                        "SELECT id, a, b, c, d FROM input_value WHERE a > ? ORDER BY a ASC LIMIT 1",
-                        params![a],
+                        "SELECT id, a, b, c, d FROM input_value WHERE input_parameter_id = ? AND a > ? ORDER BY a ASC LIMIT 1",
+                        params![input_parameter_id, a],
                         |row| {
                             Ok((
                                 row.get(0)?,
@@ -315,12 +313,8 @@ impl InputValueRepository for SqliteInputValueRepository {
                             )
                             .map_err(|e| DomainError::Internal(e.to_string()))?;
                     }
-                    (Ok(prev), Err(e)) => {
-                        match e.sqlite_error_code() {
-                            Some(ErrorCode::NotFound) => (),
-                            _ => return Err(DomainError::Data(e.to_string())),
-                        }
-
+                    (Ok(prev), Err(rusqlite::Error::QueryReturnedNoRows)) => {
+                        // No next element - we're deleting the last one, extend prev to end
                         transaction
                             .execute(
                                 "UPDATE input_value SET c = ?, d = ? WHERE id = ?",
@@ -328,12 +322,11 @@ impl InputValueRepository for SqliteInputValueRepository {
                             )
                             .map_err(|e| DomainError::Internal(e.to_string()))?;
                     }
-                    (Err(e), Ok(next)) => {
-                        match e.sqlite_error_code() {
-                            Some(ErrorCode::NotFound) => (),
-                            _ => return Err(DomainError::Data(e.to_string())),
-                        }
-
+                    (Ok(_prev), Err(e)) => {
+                        return Err(DomainError::Data(e.to_string()));
+                    }
+                    (Err(rusqlite::Error::QueryReturnedNoRows), Ok(next)) => {
+                        // No prev element - we're deleting the first one, extend next to start
                         transaction
                             .execute(
                                 "UPDATE input_value SET a = ?, b = ? WHERE id = ?",
@@ -341,15 +334,19 @@ impl InputValueRepository for SqliteInputValueRepository {
                             )
                             .map_err(|e| DomainError::Internal(e.to_string()))?;
                     }
-                    (Err(prev_e), Err(next_e)) => {
-                        match prev_e.sqlite_error_code() {
-                            Some(ErrorCode::NotFound) => (),
-                            _ => return Err(DomainError::Data(prev_e.to_string())),
+                    (Err(e), Ok(_next)) => {
+                        return Err(DomainError::Data(e.to_string()));
+                    }
+                    (Err(rusqlite::Error::QueryReturnedNoRows), Err(rusqlite::Error::QueryReturnedNoRows)) => {
+                        // Single element being deleted - nothing to adjust
+                    }
+                    (Err(prev_e), Err(_next_e)) => {
+                        // Check if prev_e is QueryReturnedNoRows
+                        if !matches!(prev_e, rusqlite::Error::QueryReturnedNoRows) {
+                            return Err(DomainError::Data(prev_e.to_string()));
                         }
-                        match next_e.sqlite_error_code() {
-                            Some(ErrorCode::NotFound) => (),
-                            _ => return Err(DomainError::Data(next_e.to_string())),
-                        }
+                        // next_e is a real error
+                        return Err(DomainError::Data(_next_e.to_string()));
                     }
                 }
 
@@ -468,10 +465,18 @@ impl InputValueRepository for SqliteInputValueRepository {
             ])
             .map_err(|e| DomainError::Internal(e.to_string()))?;
 
+            let input_parameter_id: i64 = transaction
+                .query_row(
+                    "SELECT input_parameter_id FROM input_value WHERE id = ?",
+                    params![id],
+                    |row| row.get(0),
+                )
+                .map_err(|e| DomainError::Internal(e.to_string()))?;
+
             let prev_result: Result<(i64, f32, f32, f32, f32), rusqlite::Error> = transaction
                 .query_row(
-                    "SELECT id, a, b, c, d FROM input_value WHERE a < ? ORDER BY a DESC LIMIT 1",
-                    params![model.a],
+                    "SELECT id, a, b, c, d FROM input_value WHERE input_parameter_id = ? AND id != ? AND a < ? ORDER BY a DESC LIMIT 1",
+                    params![input_parameter_id, id, model.a],
                     |row| {
                         Ok((
                             row.get(0)?,
@@ -485,8 +490,8 @@ impl InputValueRepository for SqliteInputValueRepository {
 
             let next_result: Result<(i64, f32, f32, f32, f32), rusqlite::Error> = transaction
                 .query_row(
-                    "SELECT id, a, b, c, d FROM input_value WHERE a > ? ORDER BY a ASC LIMIT 1",
-                    params![model.a],
+                    "SELECT id, a, b, c, d FROM input_value WHERE input_parameter_id = ? AND id != ? AND a > ? ORDER BY a ASC LIMIT 1",
+                    params![input_parameter_id, id, model.a],
                     |row| {
                         Ok((
                             row.get(0)?,
@@ -514,12 +519,7 @@ impl InputValueRepository for SqliteInputValueRepository {
                         )
                         .map_err(|e| DomainError::Internal(e.to_string()))?;
                 }
-                (Ok(prev), Err(e)) => {
-                    match e.sqlite_error_code() {
-                        Some(ErrorCode::NotFound) => (),
-                        _ => return Err(DomainError::Data(e.to_string())),
-                    }
-
+                (Ok(prev), Err(rusqlite::Error::QueryReturnedNoRows)) => {
                     transaction
                         .execute(
                             "UPDATE input_value SET c = ?, d = ? WHERE id = ?",
@@ -527,12 +527,10 @@ impl InputValueRepository for SqliteInputValueRepository {
                         )
                         .map_err(|e| DomainError::Internal(e.to_string()))?;
                 }
-                (Err(e), Ok(next)) => {
-                    match e.sqlite_error_code() {
-                        Some(ErrorCode::NotFound) => (),
-                        _ => return Err(DomainError::Data(e.to_string())),
-                    }
-
+                (Ok(_prev), Err(e)) => {
+                    return Err(DomainError::Data(e.to_string()));
+                }
+                (Err(rusqlite::Error::QueryReturnedNoRows), Ok(next)) => {
                     transaction
                         .execute(
                             "UPDATE input_value SET a = ?, b = ? WHERE id = ?",
@@ -540,15 +538,17 @@ impl InputValueRepository for SqliteInputValueRepository {
                         )
                         .map_err(|e| DomainError::Internal(e.to_string()))?;
                 }
-                (Err(prev_e), Err(next_e)) => {
-                    match prev_e.sqlite_error_code() {
-                        Some(ErrorCode::NotFound) => (),
-                        _ => return Err(DomainError::Data(prev_e.to_string())),
+                (Err(e), Ok(_next)) => {
+                    return Err(DomainError::Data(e.to_string()));
+                }
+                (Err(rusqlite::Error::QueryReturnedNoRows), Err(rusqlite::Error::QueryReturnedNoRows)) => {
+                    // Single element - nothing to adjust
+                }
+                (Err(prev_e), Err(_next_e)) => {
+                    if !matches!(prev_e, rusqlite::Error::QueryReturnedNoRows) {
+                        return Err(DomainError::Data(prev_e.to_string()));
                     }
-                    match next_e.sqlite_error_code() {
-                        Some(ErrorCode::NotFound) => (),
-                        _ => return Err(DomainError::Data(next_e.to_string())),
-                    }
+                    return Err(DomainError::Data(_next_e.to_string()));
                 }
             }
 

@@ -109,11 +109,10 @@ impl OutputParameterRepository for SqliteOutputParameterRepository {
                         .map(|id| format!("|{}|", id))
                         .collect();
                     let mut stmt= transaction
-                .prepare("INSERT INTO output_value (output_parameter_id, input_value_ids, value) VALUES (?, ?, ?)").map_err(|e| DomainError::Internal(e.to_string()))?;
+                .prepare("INSERT INTO output_value (output_parameter_id, input_value_ids) VALUES (?, ?)").map_err(|e| DomainError::Internal(e.to_string()))?;
                     stmt.execute(rusqlite::params![
                         &new_output_parameter_id,
-                        &input_values_ids_strings.join(""),
-                        ""
+                        &input_values_ids_strings.join("")
                     ])
                     .map_err(|e| DomainError::Internal(e.to_string()))?;
                 }
