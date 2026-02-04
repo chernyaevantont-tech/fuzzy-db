@@ -1,0 +1,77 @@
+.TableWrapper {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    position: relative;
+}
+
+.Table {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: fit-content;
+    min-width: 100%;
+}
+
+.TableRow {
+    display: flex;
+    gap: 2px;
+}
+
+.TableCell {
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    width: 150px;
+    min-width: 150px;
+    max-width: 150px;
+    text-align: center;
+    font-family: inherit;
+    font-size: 0.9rem;
+    background: var(--background-color);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-sizing: border-box;
+}
+
+.TableCell:focus {
+    outline: 2px solid var(--accent-color);
+    outline-offset: -2px;
+}
+
+.EditableCell {
+    background: var(--input-background);
+    color: var(--text-color);
+    cursor: pointer;
+}
+
+.EditableCell:hover {
+    background: var(--input-hover-background);
+}
+
+.SelectCell {
+    cursor: pointer;
+    text-align: left;
+    padding: 0.4rem 0.5rem;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    background-size: 1em;
+    padding-right: 2rem;
+    transition: none;
+}
+
+.SelectCell option {
+    padding: 0.5rem;
+}
+
+.UneditableCell {
+    background: var(--disabled-background);
+    color: var(--disabled-text-color);
+    cursor: not-allowed;
+    font-weight: 600;
+}

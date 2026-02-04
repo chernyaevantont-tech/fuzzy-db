@@ -6,7 +6,7 @@ use std::{
 use crate::{
     domain::repository::{
         FuzzyOutputValueRepository, ImageRepository, InputParameterRepository,
-        InputValueRepository, OutputParameterRepository, ProblemRepository,
+        InputValueRepository, OutputParameterRepository, OutputValueRepository, ProblemRepository,
     },
     infrastructure::repository::sqlite::{
         fuzzy_output_value_repository::SqliteFuzzyOutputValueRepository,
@@ -14,6 +14,7 @@ use crate::{
         input_parameter_repository::SqliteInputParameterRepository,
         input_value_repository::SqliteInputValueRepository,
         output_parameter_repository::SqliteOutputParameterRepository,
+        output_value_repository::SqliteOutputValueRepository,
         problem_repository::SqliteProblemRepository,
     },
 };
@@ -24,6 +25,7 @@ pub struct AppState {
     pub input_value_repository: Box<dyn InputValueRepository>,
     pub output_parameter_repository: Box<dyn OutputParameterRepository>,
     pub fuzzy_output_value_repository: Box<dyn FuzzyOutputValueRepository>,
+    pub output_value_repository: Box<dyn OutputValueRepository>,
     pub image_repository: Box<dyn ImageRepository>,
 }
 
@@ -111,6 +113,7 @@ impl AppState {
             input_value_repository: Box::new(SqliteInputValueRepository::new(Arc::clone(&shared_conn))),
             output_parameter_repository: Box::new(SqliteOutputParameterRepository::new(Arc::clone(&shared_conn))),
             fuzzy_output_value_repository: Box::new(SqliteFuzzyOutputValueRepository::create(Arc::clone(&shared_conn))),
+            output_value_repository: Box::new(SqliteOutputValueRepository::create(Arc::clone(&shared_conn))),
             image_repository: Box::new(SqliteImageRepository::new(Arc::clone(&shared_conn))),
         }
     }

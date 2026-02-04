@@ -52,5 +52,8 @@ pub trait FuzzyOutputValueRepository: Send + Sync {
 }
 
 pub trait OutputValueRepository: Send + Sync {
+    fn create(&self, model: &OutputValue) -> Result<i64, DomainError>;
     fn update_by_id(&self, id: i64, model: &OutputValue) -> Result<(), DomainError>;
+    fn update_fuzzy_output_value(&self, id: i64, fuzzy_output_value_id: Option<i64>) -> Result<(), DomainError>;
+    fn get_by_problem_id(&self, problem_id: i64) -> Result<Vec<OutputValue>, DomainError>;
 }

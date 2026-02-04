@@ -6,7 +6,7 @@ pub mod infrastructure;
 use infrastructure::state::AppState;
 use infrastructure::tauri::commands::{
     fuzzy_inference::*, fuzzy_output_value::*, image::*, input_parameter::*, input_value::*,
-    output_parameter::*, problem::*,
+    output_parameter::*, output_value::*, problem::*,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -36,6 +36,9 @@ pub fn run() {
             create_fuzzy_output_value,
             remove_fuzzy_output_value_by_id,
             update_fuzzy_output_value_by_id,
+            create_output_value,
+            update_output_value_by_id,
+            get_output_values_by_problem_id,
             evaluate_fuzzy_system,
         ])
         .run(tauri::generate_context!())

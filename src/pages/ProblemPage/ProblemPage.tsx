@@ -6,6 +6,7 @@ import ProblemNavigation from '../../modules/ProblemNavigation/ProblemNavigation
 import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import InputParameterList from '../../modules/InputParameterList/InputParameterList';
 import OutputParameterList from '../../modules/OutputParameterList/OutputParameterList';
+import RulesTable from '../../modules/RulesTable/RulesTable';
 import { IoMdAddCircleOutline } from 'react-icons/io';
 import { useCallback, useEffect, useState } from 'react';
 import { InputParameterResponse } from '../../types/input_parameter';
@@ -96,10 +97,17 @@ const ProblemPage = () => {
                     <div className={classes.ToolsWrapper}>
                         <ProblemNavigation />
                     </div>
-                    <Routes>
-                        <Route path='/' element={<Navigate to="table" />} />
-                        <Route path="table" element={<div>Таблица</div>} />
-                        <Route path="user-output" element={<div>Пользовательский вывод</div>} />
+                    <div className={classes.RoutesWrapper}>
+                        <Routes>
+                            <Route path='/' element={<Navigate to="table" />} />
+                            <Route path="table" element={
+                                <RulesTable 
+                                    problemId={prevProblem?.id ?? 0}
+                                    inputParameters={inputParameters}
+                                    outputParameters={outputParameters}
+                                />
+                            } />
+                            <Route path="user-output" element={<div>Пользовательский вывод</div>} />
                         <Route path='input-parameters' element={
                             <InputParameterList 
                                 inputParameters={inputParameters} 
@@ -121,6 +129,7 @@ const ProblemPage = () => {
                             />
                         } />
                     </Routes>
+                    </div>
                 </div>
                 <RightMenu>
                     <RightMenu.Unit tip={"Таблица выходных значений"}>

@@ -19,10 +19,10 @@ impl UpdateOutputValueRequest {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct OutputValueResponse {
-    id: i64,
-    output_parameter_id: i64,
-    fuzzy_output_value_id: Option<i64>,
-    input_value_ids: String,
+    pub id: i64,
+    pub output_parameter_id: i64,
+    pub fuzzy_output_value_id: Option<i64>,
+    pub input_value_ids: String,
 }
 
 impl OutputValueResponse {
