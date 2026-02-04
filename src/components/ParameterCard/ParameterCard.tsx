@@ -12,10 +12,32 @@ interface ParameterCardProps {
     setParameter: (name: string, start: number, end: number) => void;
     removeCallback: () => void;
     children: React.ReactNode;
+    switchUpCallback?: () => void;
+    switchDownCallback?: () => void;
+    canSwitchUp?: boolean;
+    canSwitchDown?: boolean;
+    isOpen?: boolean;
+    setIsOpen?: (open: boolean) => void;
 }
 
-const ParameterCard: React.FC<ParameterCardProps> = ({ name, start, end, setParameter, removeCallback, children }) => {
-    const [isOpened, setIsOpened] = useState<Boolean>(false);
+const ParameterCard: React.FC<ParameterCardProps> = ({ 
+    name, 
+    start, 
+    end, 
+    setParameter, 
+    removeCallback, 
+    children,
+    switchUpCallback,
+    switchDownCallback,
+    canSwitchUp = false,
+    canSwitchDown = false,
+    isOpen: externalIsOpen,
+    setIsOpen: externalSetIsOpen,
+}) => {
+    // Используем внешнее состояние если передано, иначе локальное
+    const [localIsOpened, setLocalIsOpened] = useState<boolean>(false);
+    const isOpened = externalIsOpen !== undefined ? externalIsOpen : localIsOpened;
+    const setIsOpened = externalSetIsOpen || setLocalIsOpened;
 
     const [timerId, setTimerId] = useState<number | null>(null);
 
@@ -139,6 +161,20 @@ const ParameterCard: React.FC<ParameterCardProps> = ({ name, start, end, setPara
                 <div className={classes.Name}>
                     <TextBorderedInput value={currentName} setValue={saveNameOnChange} onBlur={saveNameOnBlur} className={classes.NameInput} />
                 </div>
+                {switchUpCallback && (
+                    <div className={classes.SwitchButtons}>
+                        {canSwitchUp ? (
+                            <FaAngleUp className={classes.IconSwitch} onClick={switchUpCallback} title="Переместить вверх" />
+                        ) : (
+                            <div className={classes.IconSwitch} />
+                        )}
+                        {canSwitchDown ? (
+                            <FaAngleDown className={classes.IconSwitch} onClick={switchDownCallback} title="Переместить вниз" />
+                        ) : (
+                            <div className={classes.IconSwitch} />
+                        )}
+                    </div>
+                )}
                 <RxCross2 className={classes.Icon} onClick={removeCallback} />
                 {
                     isOpened ?

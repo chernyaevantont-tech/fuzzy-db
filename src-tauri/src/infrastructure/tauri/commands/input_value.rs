@@ -43,3 +43,9 @@ pub fn update_input_value_by_id(
         .execute(id, &update_request.to_entity())
         .map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+pub fn switch_input_values(id1: i64, id2: i64, state: State<'_, AppState>) -> Result<(), String> {
+    let repository = state.input_value_repository.as_ref();
+    repository.switch(id1, id2).map_err(|e| e.to_string())
+}

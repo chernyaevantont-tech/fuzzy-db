@@ -6,12 +6,16 @@ interface OutputParameterListProps {
     outputParameters: Array<OutputParameterResponse>,
     setOutputParameters: (value: OutputParameterResponse[]) => void,
     refetchData: () => void,
+    openCards: Record<number, boolean>,
+    setOpenCards: (value: Record<number, boolean>) => void,
 }
 
 const OutputParameterList: React.FC<OutputParameterListProps> = ({
     outputParameters,
     setOutputParameters,
     refetchData,
+    openCards,
+    setOpenCards,
 }) => {
     return (
         <div className={classes.OutputParameterList}>
@@ -30,6 +34,9 @@ const OutputParameterList: React.FC<OutputParameterListProps> = ({
                             setOutputParameters(newOutputParameters.filter(x => x.id != id));
                         }}
                         refetchData={refetchData}
+                        allParameters={outputParameters}
+                        isOpen={openCards[outputParameter.id] ?? false}
+                        setIsOpen={(open) => setOpenCards({ ...openCards, [outputParameter.id]: open })}
                         key={outputParameter.id}
                     />
                 )

@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import { FuzzyOutputValueResponse } from '../../../../types/fuzzy_output_value';
 import TextInput from '../../../../ui/inputs/TextInput/TextInput';
 import classes from './FuzzyOutputValueUnit.module.css';
+import { FaAngleUp, FaAngleDown } from 'react-icons/fa6';
 
 // Color palette - should match FuzzyGraph
 const COLORS = [
@@ -18,6 +19,10 @@ interface FuzzyOutputValueUnitProps {
     isLast: boolean;
     onValueChange: (updated: FuzzyOutputValueResponse, editedParam?: 'a' | 'b' | 'c' | 'd') => void;
     onDelete: () => void;
+    onSwitchUp?: () => void;
+    onSwitchDown?: () => void;
+    canSwitchUp?: boolean;
+    canSwitchDown?: boolean;
 }
 
 const FuzzyOutputValueUnit: React.FC<FuzzyOutputValueUnitProps> = ({
@@ -29,6 +34,10 @@ const FuzzyOutputValueUnit: React.FC<FuzzyOutputValueUnitProps> = ({
     isLast,
     onValueChange,
     onDelete,
+    onSwitchUp,
+    onSwitchDown,
+    canSwitchUp = false,
+    canSwitchDown = false,
 }) => {
     const color = COLORS[index % COLORS.length];
 
@@ -139,6 +148,20 @@ const FuzzyOutputValueUnit: React.FC<FuzzyOutputValueUnitProps> = ({
                     className={classes.Value}
                 />
                 <div className={classes.Actions}>
+                    {onSwitchUp && (
+                        <div className={classes.SwitchButtons}>
+                            {canSwitchUp ? (
+                                <FaAngleUp className={classes.SwitchIcon} onClick={onSwitchUp} title="Переместить вверх" />
+                            ) : (
+                                <div className={classes.SwitchIcon} />
+                            )}
+                            {canSwitchDown ? (
+                                <FaAngleDown className={classes.SwitchIcon} onClick={onSwitchDown} title="Переместить вниз" />
+                            ) : (
+                                <div className={classes.SwitchIcon} />
+                            )}
+                        </div>
+                    )}
                     <button className={classes.DeleteButton} onClick={onDelete} title="Удалить">
                         ✕
                     </button>

@@ -41,6 +41,24 @@
     display: flex;
     gap: 4px;
     flex-shrink: 0;
+    align-items: center;
+}
+
+.SwitchButtons {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    align-items: center;
+}
+
+.SwitchIcon {
+    cursor: pointer;
+    color: var(--border-color);
+    font-size: 1em;
+}
+
+.SwitchIcon:hover {
+    color: var(--accent-color);
 }
 
 .Parameters {
@@ -90,12 +108,38 @@
     color: var(--danger-color, #e74c3c);
     cursor: pointer;
     padding: 4px 8px;
-    font-size: 14px;
+    font-size: 18px;
     border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .DeleteButton:hover {
     background-color: var(--danger-bg, rgba(231, 76, 60, 0.1));
+}
+
+.MoveButton {
+    background: none;
+    border: none;
+    color: var(--accent-color, #3498db);
+    cursor: pointer;
+    padding: 4px 8px;
+    font-size: 14px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.MoveButton:hover {
+    background-color: var(--accent-bg, rgba(52, 152, 219, 0.1));
+}
+
+.MoveButton:disabled {
+    color: var(--text-secondary, #666);
+    cursor: not-allowed;
+    opacity: 0.5;
 }
 
 .SaveButton {

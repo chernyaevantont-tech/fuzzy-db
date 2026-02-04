@@ -32,6 +32,23 @@
     color: var(--border-color)
 }
 
+.IconSwitch {
+    cursor: pointer;
+    color: var(--border-color);
+    font-size: 1.2em;
+}
+
+.IconSwitch:hover {
+    color: var(--accent-color);
+}
+
+.SwitchButtons {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    align-items: center;
+}
+
 .StartEndContainer {
     display: flex;
     justify-content: start;

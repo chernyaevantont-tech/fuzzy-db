@@ -6,18 +6,24 @@ import SecondaryButton from '../../../ui/buttons/SecondaryButton/SecondaryButton
 import { createFuzzyOutputValue } from '../../../api/fuzzy_output_value/createFuzzyOutputValue';
 import { updateOutputParameterById } from '../../../api/output_parameter/updateOutputParameterById';
 import { removeOutputParameterById } from '../../../api/output_parameter/removeOutputParameterById';
+import { switchOutputParameters } from '../../../api/output_parameter/switchOutputParameters';
+import { switchFuzzyOutputValues } from '../../../api/fuzzy_output_value/switchFuzzyOutputValues';
 import FuzzyOutputValueUnit from './FuzzyOutputValueUnit/FuzzyOutputValueUnit';
 import { FuzzyOutputValueResponse } from '../../../types/fuzzy_output_value';
 import FuzzyGraph from '../../../components/FuzzyGraph/FuzzyGraph';
 import { updateFuzzyOutputValueById } from '../../../api/fuzzy_output_value/updateFuzzyOutputValueById';
 import { removeFuzzyOutputValueById } from '../../../api/fuzzy_output_value/removeFuzzyOutputValueById';
 import classes from './OutputParameterCard.module.css';
+import { FaAngleUp, FaAngleDown } from 'react-icons/fa6';
 
 interface OutputParameterCardProps {
     outputParameter: OutputParameterResponse;
     setOutputParameter: (value: OutputParameterResponse) => void;
     deleteCallback: () => void;
     refetchData: () => void;
+    allParameters: OutputParameterResponse[];
+    isOpen: boolean;
+    setIsOpen: (open: boolean) => void;
 }
 
 const OutputParameterCard: React.FC<OutputParameterCardProps> = ({ 
@@ -25,25 +31,48 @@ const OutputParameterCard: React.FC<OutputParameterCardProps> = ({
     setOutputParameter, 
     deleteCallback,
     refetchData,
+    allParameters,
+    isOpen,
+    setIsOpen,
 }) => {
     // Local state for editing - will be synced with props
     const [localOutputValues, setLocalOutputValues] = useState<FuzzyOutputValueResponse[]>([]);
     const [isDirty, setIsDirty] = useState(false);
 
-    // Sync local state with props
+    // Get current index of this parameter
+    const currentIndex = allParameters.findIndex(p => p.id === outputParameter.id);
+    const canMoveUp = currentIndex > 0;
+    const canMoveDown = currentIndex < allParameters.length - 1;
+
+    // Handle switch up
+    const handleSwitchUp = useCallback(() => {
+        if (canMoveUp) {
+            const prevParameter = allParameters[currentIndex - 1];
+            switchOutputParameters(outputParameter.id, prevParameter.id, () => {
+                refetchData();
+            });
+        }
+    }, [canMoveUp, currentIndex, allParameters, outputParameter.id, refetchData]);
+
+    // Handle switch down
+    const handleSwitchDown = useCallback(() => {
+        if (canMoveDown) {
+            const nextParameter = allParameters[currentIndex + 1];
+            switchOutputParameters(outputParameter.id, nextParameter.id, () => {
+                refetchData();
+            });
+        }
+    }, [canMoveDown, currentIndex, allParameters, outputParameter.id, refetchData]);
+
+    // Sync local state with props - always use fresh data
     useEffect(() => {
         setLocalOutputValues([...outputParameter.fuzzy_output_values]);
         setIsDirty(false);
-    }, [outputParameter.fuzzy_output_values]);
+    }, [outputParameter]);
 
-    // Reset local state when switching to different parameter
-    useEffect(() => {
-        setLocalOutputValues([...outputParameter.fuzzy_output_values]);
-        setIsDirty(false);
-    }, [outputParameter.id]);
-
-    // Sort fuzzy output values by 'a' for consistent ordering with graph
-    const sortedFuzzyOutputValues = [...localOutputValues].sort((a, b) => a.a - b.a);
+    // Use database order directly - NO sorting by 'a'
+    // This way switch operations preserve the order
+    const displayFuzzyOutputValues = localOutputValues;
 
     // Update a single term and sync adjacent terms using Ruspini partition rules:
     // Same logic as input parameters - overlapping trapezoidal membership functions
@@ -196,22 +225,44 @@ const OutputParameterCard: React.FC<OutputParameterCardProps> = ({
             start={outputParameter.start}
             end={outputParameter.end}
             removeCallback={() => removeOutputParameterById(outputParameter.id, deleteCallback)}
+            switchUpCallback={handleSwitchUp}
+            switchDownCallback={handleSwitchDown}
+            canSwitchUp={canMoveUp}
+            canSwitchDown={canMoveDown}
+            isOpen={isOpen}
+            setIsOpen={setIsOpen}
         >
-            <FuzzyGraph start={outputParameter.start} end={outputParameter.end} units={sortedFuzzyOutputValues} />
+            <FuzzyGraph start={outputParameter.start} end={outputParameter.end} units={displayFuzzyOutputValues} />
             {
-                sortedFuzzyOutputValues.map((fuzzyOutputValue, index) =>
-                    <FuzzyOutputValueUnit
-                        key={fuzzyOutputValue.id}
-                        fuzzyOutputValue={fuzzyOutputValue}
-                        index={index}
-                        parameterStart={outputParameter.start}
-                        parameterEnd={outputParameter.end}
-                        isFirst={index === 0}
-                        isLast={index === sortedFuzzyOutputValues.length - 1}
-                        onValueChange={(updated: FuzzyOutputValueResponse, editedParam?: 'a' | 'b' | 'c' | 'd') => handleTermChange(updated, editedParam)}
-                        onDelete={() => handleDeleteTerm(fuzzyOutputValue.id)}
-                    />
-                )
+                displayFuzzyOutputValues.map((fuzzyOutputValue, index) => {
+                    return (
+                        <FuzzyOutputValueUnit
+                            key={`value-${fuzzyOutputValue.id}-${fuzzyOutputValue.value}-${fuzzyOutputValue.a}-${fuzzyOutputValue.b}-${fuzzyOutputValue.c}-${fuzzyOutputValue.d}`}
+                            fuzzyOutputValue={fuzzyOutputValue}
+                            index={index}
+                            parameterStart={outputParameter.start}
+                            parameterEnd={outputParameter.end}
+                            isFirst={index === 0}
+                            isLast={index === displayFuzzyOutputValues.length - 1}
+                            onValueChange={(updated: FuzzyOutputValueResponse, editedParam?: 'a' | 'b' | 'c' | 'd') => handleTermChange(updated, editedParam)}
+                            onDelete={() => handleDeleteTerm(fuzzyOutputValue.id)}
+                            onSwitchUp={() => {
+                                if (index > 0) {
+                                    const prevValue = displayFuzzyOutputValues[index - 1];
+                                    switchFuzzyOutputValues(fuzzyOutputValue.id, prevValue.id, refetchData);
+                                }
+                            }}
+                            onSwitchDown={() => {
+                                if (index < displayFuzzyOutputValues.length - 1) {
+                                    const nextValue = displayFuzzyOutputValues[index + 1];
+                                    switchFuzzyOutputValues(fuzzyOutputValue.id, nextValue.id, refetchData);
+                                }
+                            }}
+                            canSwitchUp={index > 0}
+                            canSwitchDown={index < displayFuzzyOutputValues.length - 1}
+                        />
+                    );
+                })
             }
             <div className={classes.Actions}>
                 <AccentButton onClick={

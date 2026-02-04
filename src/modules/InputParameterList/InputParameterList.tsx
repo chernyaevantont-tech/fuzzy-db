@@ -6,12 +6,16 @@ interface InputParameterListProps {
     inputParameters: Array<InputParameterResponse>,
     setInputParameters: (value: InputParameterResponse[]) => void,
     refetchData: () => void,
+    openCards: Record<number, boolean>,
+    setOpenCards: (value: Record<number, boolean>) => void,
 }
 
 const InputParameterList: React.FC<InputParameterListProps> = ({
     inputParameters,
     setInputParameters,
     refetchData,
+    openCards,
+    setOpenCards,
 }) => {
     return (
         <div className={classes.InputParameterList}>
@@ -30,6 +34,9 @@ const InputParameterList: React.FC<InputParameterListProps> = ({
                             setInputParameters(newInputParameters.filter(x => x.id != id));
                         }}
                         refetchData={refetchData}
+                        allParameters={inputParameters}
+                        isOpen={openCards[inputParameter.id] ?? false}
+                        setIsOpen={(open) => setOpenCards({ ...openCards, [inputParameter.id]: open })}
                         key={inputParameter.id}
                     />
                 )

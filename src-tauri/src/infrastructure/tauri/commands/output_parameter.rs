@@ -44,3 +44,9 @@ pub fn remove_output_parameter_by_id(id: i64, state: State<'_, AppState>) -> Res
     let use_case = RemoveOutputParameterByIdUseCase::new(state.output_parameter_repository.as_ref());
     use_case.execute(id).map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+pub fn switch_output_parameters(id1: i64, id2: i64, state: State<'_, AppState>) -> Result<(), String> {
+    let repository = state.output_parameter_repository.as_ref();
+    repository.switch(id1, id2).map_err(|e| e.to_string())
+}

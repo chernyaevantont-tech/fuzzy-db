@@ -638,37 +638,42 @@ impl InputValueRepository for SqliteInputValueRepository {
 
         let value_1 = {
             let mut stmt = tx
-                .prepare("SELECT value FROM input_value WHERE id = ?")
+                .prepare("SELECT value, a, b, c, d FROM input_value WHERE id = ?")
                 .map_err(|e| DomainError::Internal(e.to_string()))?;
 
-            let value: String = stmt
-                .query_row(params![id_1], |row| row.get(0))
+            let result: (String, f32, f32, f32, f32) = stmt
+                .query_row(params![id_1], |row| {
+                    Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
+                })
                 .map_err(|e| DomainError::Internal(e.to_string()))?;
 
-            value
+            result
         };
 
         let value_2 = {
             let mut stmt = tx
-                .prepare("SELECT value FROM input_value WHERE id = ?")
+                .prepare("SELECT value, a, b, c, d FROM input_value WHERE id = ?")
                 .map_err(|e| DomainError::Internal(e.to_string()))?;
 
-            let value: String = stmt
-                .query_row(params![id_2], |row| row.get(0))
+            let result: (String, f32, f32, f32, f32) = stmt
+                .query_row(params![id_2], |row| {
+                    Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
+                })
                 .map_err(|e| DomainError::Internal(e.to_string()))?;
 
-            value
+            result
         };
 
+        // Swap value names and trapezoid parameters (a, b, c, d)
         tx.execute(
-            "UPDATE input_value SET value = ? WHERE id = ?",
-            params![value_2, id_1],
+            "UPDATE input_value SET value = ?, a = ?, b = ?, c = ?, d = ? WHERE id = ?",
+            params![value_2.0, value_2.1, value_2.2, value_2.3, value_2.4, id_1],
         )
         .map_err(|e| DomainError::Internal(e.to_string()))?;
 
         tx.execute(
-            "UPDATE input_value SET value = ? WHERE id = ?",
-            params![value_1, id_2],
+            "UPDATE input_value SET value = ?, a = ?, b = ?, c = ?, d = ? WHERE id = ?",
+            params![value_1.0, value_1.1, value_1.2, value_1.3, value_1.4, id_2],
         )
         .map_err(|e| DomainError::Internal(e.to_string()))?;
 

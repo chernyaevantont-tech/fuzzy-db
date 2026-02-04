@@ -6,18 +6,24 @@ import SecondaryButton from '../../../ui/buttons/SecondaryButton/SecondaryButton
 import { createInputValue } from '../../../api/input_value/createInputValue';
 import { updateInputParameterById } from '../../../api/input_parameter/updateInputParameter';
 import { removeInputParameterById } from '../../../api/input_parameter/removeInputParameterById';
+import { switchInputParameters } from '../../../api/input_parameter/switchInputParameters';
+import { switchInputValues } from '../../../api/input_value/switchInputValues';
 import InputValueUnit from './InputValueUnit/InputValueUnit';
 import { InputValueResponse } from '../../../types/input_value';
 import FuzzyGraph from '../../../components/FuzzyGraph/FuzzyGraph';
 import { updateInputValueById } from '../../../api/input_value/updateInputValueById';
 import { removeInputValueById } from '../../../api/input_value/removeInputValueById';
 import classes from './InputParameterCard.module.css';
+import { FaAngleUp, FaAngleDown } from 'react-icons/fa6';
 
 interface InputParameterCardProps {
     inputParameter: InputParameterResponse;
     setInputParameter: (value: InputParameterResponse) => void;
     deleteCallback: () => void;
     refetchData: () => void;
+    allParameters: InputParameterResponse[];
+    isOpen: boolean;
+    setIsOpen: (open: boolean) => void;
 }
 
 const InputParameterCard: React.FC<InputParameterCardProps> = ({
@@ -25,25 +31,54 @@ const InputParameterCard: React.FC<InputParameterCardProps> = ({
     setInputParameter,
     deleteCallback,
     refetchData,
+    allParameters,
+    isOpen,
+    setIsOpen,
 }) => {
     // Local state for editing - will be synced with props
     const [localInputValues, setLocalInputValues] = useState<InputValueResponse[]>([]);
     const [isDirty, setIsDirty] = useState(false);
 
-    // Sync local state with props
+    // Sync local state with props - always use fresh data
     useEffect(() => {
         setLocalInputValues([...inputParameter.input_values]);
         setIsDirty(false);
-    }, [inputParameter.input_values]);
+    }, [inputParameter]);
 
-    // Reset local state when switching to different parameter
+    // Get current index of this parameter
+    const currentIndex = allParameters.findIndex(p => p.id === inputParameter.id);
+    const canMoveUp = currentIndex > 0;
+    const canMoveDown = currentIndex < allParameters.length - 1;
+
+    // Handle switch up
+    const handleSwitchUp = useCallback(() => {
+        if (canMoveUp) {
+            const prevParameter = allParameters[currentIndex - 1];
+            switchInputParameters(inputParameter.id, prevParameter.id, () => {
+                refetchData();
+            });
+        }
+    }, [canMoveUp, currentIndex, allParameters, inputParameter.id, refetchData]);
+
+    // Handle switch down
+    const handleSwitchDown = useCallback(() => {
+        if (canMoveDown) {
+            const nextParameter = allParameters[currentIndex + 1];
+            switchInputParameters(inputParameter.id, nextParameter.id, () => {
+                refetchData();
+            });
+        }
+    }, [canMoveDown, currentIndex, allParameters, inputParameter.id, refetchData]);
+
+    // Sync local state with props - always use fresh data
     useEffect(() => {
         setLocalInputValues([...inputParameter.input_values]);
         setIsDirty(false);
-    }, [inputParameter.id]);
+    }, [inputParameter]);
 
-    // Sort input values by 'a' for consistent ordering with graph
-    const sortedInputValues = [...localInputValues].sort((a, b) => a.a - b.a);
+    // Use database order directly - NO sorting by 'a'
+    // This way switch operations preserve the order
+    const displayInputValues = localInputValues;
 
     // Update a single term and sync adjacent terms using Ruspini partition rules:
     // A.c = B.a, A.d = B.b (overlapping terms)
@@ -197,22 +232,48 @@ const InputParameterCard: React.FC<InputParameterCardProps> = ({
             start={inputParameter.start}
             end={inputParameter.end}
             removeCallback={() => removeInputParameterById(inputParameter.id, deleteCallback)}
+            switchUpCallback={handleSwitchUp}
+            switchDownCallback={handleSwitchDown}
+            canSwitchUp={canMoveUp}
+            canSwitchDown={canMoveDown}
+            isOpen={isOpen}
+            setIsOpen={setIsOpen}
         >
-            <FuzzyGraph start={inputParameter.start} end={inputParameter.end} units={sortedInputValues} />
+            <FuzzyGraph start={inputParameter.start} end={inputParameter.end} units={displayInputValues} />
             {
-                sortedInputValues.map((inputValue, index) =>
-                    <InputValueUnit
-                        key={inputValue.id}
-                        inputValue={inputValue}
-                        index={index}
-                        parameterStart={inputParameter.start}
-                        parameterEnd={inputParameter.end}
-                        isFirst={index === 0}
-                        isLast={index === sortedInputValues.length - 1}
-                        onValueChange={(updated: InputValueResponse, editedParam?: 'a' | 'b' | 'c' | 'd') => handleTermChange(updated, editedParam)}
-                        onDelete={() => handleDeleteTerm(inputValue.id)}
-                    />
-                )
+                displayInputValues.map((inputValue, index) => {
+                    // Используем актуальные данные напрямую из inputParameter для switch
+                    const actualIndex = inputParameter.input_values.findIndex(v => v.id === inputValue.id);
+                    const actualValue = inputParameter.input_values[actualIndex];
+                    
+                    return (
+                        <InputValueUnit
+                            key={`value-${inputValue.id}-${inputValue.value}-${inputValue.a}-${inputValue.b}-${inputValue.c}-${inputValue.d}`}
+                            inputValue={inputValue}
+                            index={index}
+                            parameterStart={inputParameter.start}
+                            parameterEnd={inputParameter.end}
+                            isFirst={index === 0}
+                            isLast={index === displayInputValues.length - 1}
+                            onValueChange={(updated: InputValueResponse, editedParam?: 'a' | 'b' | 'c' | 'd') => handleTermChange(updated, editedParam)}
+                            onDelete={() => handleDeleteTerm(inputValue.id)}
+                            onSwitchUp={() => {
+                                if (index > 0) {
+                                    const prevValue = displayInputValues[index - 1];
+                                    switchInputValues(inputValue.id, prevValue.id, refetchData);
+                                }
+                            }}
+                            onSwitchDown={() => {
+                                if (index < displayInputValues.length - 1) {
+                                    const nextValue = displayInputValues[index + 1];
+                                    switchInputValues(inputValue.id, nextValue.id, refetchData);
+                                }
+                            }}
+                            canSwitchUp={index > 0}
+                            canSwitchDown={index < displayInputValues.length - 1}
+                        />
+                    );
+                })
             }
             <div className={classes.Actions}>
                 <AccentButton onClick={

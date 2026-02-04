@@ -21,6 +21,11 @@ import FuzzyEvaluation from '../../modules/FuzzyEvaluation/FuzzyEvaluation';
 const ProblemPage = () => {
     const [inputParameters, setInputParameters] = useState<InputParameterResponse[]>([]);
     const [outputParameters, setOutputParameters] = useState<OutputParameterResponse[]>([]);
+    const [dataVersion, setDataVersion] = useState(0);
+    
+    // Состояние открытости карточек параметров (по ID параметра)
+    const [openInputCards, setOpenInputCards] = useState<Record<number, boolean>>({});
+    const [openOutputCards, setOpenOutputCards] = useState<Record<number, boolean>>({});
 
     const location = useLocation();
 
@@ -30,6 +35,7 @@ const ProblemPage = () => {
         getFullProblemById(prevProblem?.id ?? 0, (resp: ProblemFullResponse) => {
             setInputParameters(resp.input_parameters);
             setOutputParameters(resp.output_parameters);
+            setDataVersion(v => v + 1);
         });
     }, [prevProblem?.id]);
 
@@ -110,16 +116,22 @@ const ProblemPage = () => {
                             <Route path="user-output" element={<div>Пользовательский вывод</div>} />
                         <Route path='input-parameters' element={
                             <InputParameterList 
+                                key={`input-${dataVersion}`}
                                 inputParameters={inputParameters} 
                                 setInputParameters={setInputParameters}
                                 refetchData={fetchData}
+                                openCards={openInputCards}
+                                setOpenCards={setOpenInputCards}
                             />
                         } />
                         <Route path='output-parameters' element={
                             <OutputParameterList 
+                                key={`output-${dataVersion}`}
                                 outputParameters={outputParameters} 
                                 setOutputParameters={setOutputParameters}
                                 refetchData={fetchData}
+                                openCards={openOutputCards}
+                                setOpenCards={setOpenOutputCards}
                             />
                         } />
                         <Route path='evaluation' element={
