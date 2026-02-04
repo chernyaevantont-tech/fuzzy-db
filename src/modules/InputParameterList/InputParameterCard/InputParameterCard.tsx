@@ -36,6 +36,12 @@ const InputParameterCard: React.FC<InputParameterCardProps> = ({
         setIsDirty(false);
     }, [inputParameter.input_values]);
 
+    // Reset local state when switching to different parameter
+    useEffect(() => {
+        setLocalInputValues([...inputParameter.input_values]);
+        setIsDirty(false);
+    }, [inputParameter.id]);
+
     // Sort input values by 'a' for consistent ordering with graph
     const sortedInputValues = [...localInputValues].sort((a, b) => a.a - b.a);
 
@@ -56,48 +62,84 @@ const InputParameterCard: React.FC<InputParameterCardProps> = ({
             
             const numTerms = newValues.length;
             const epsilon = (inputParameter.end - inputParameter.start) * 0.001;
-            const isFirst = actualIndex === 0;
-            const isLast = actualIndex === numTerms - 1;
             
-            // Apply Ruspini partition rules based on which param was edited
-            // Rules: prev.c = next.a, prev.d = next.b
+            // Strategy: maintain Ruspini partition by propagating changes
+            // If b is edited: affects prev.d and next.a (through curr.a which = prev.c)
+            // If c is edited: affects next.a and prev.d (through curr.d which = next.b)
             
-            if (editedParam === 'a' || editedParam === 'b') {
-                // Edited left boundary (a or b) -> propagate to previous term's c/d
-                if (!isFirst) {
-                    // prev.c = curr.a, prev.d = curr.b
-                    newValues[actualIndex - 1] = {
-                        ...newValues[actualIndex - 1],
-                        c: newValues[actualIndex].a,
-                        d: newValues[actualIndex].b,
-                    };
+            // First, ensure internal consistency of edited term
+            const curr = newValues[actualIndex];
+            if (curr.a >= curr.b) curr.b = curr.a + epsilon;
+            if (curr.b > curr.c) curr.c = curr.b;
+            if (curr.c >= curr.d) curr.d = curr.c + epsilon;
+            
+            // Forward pass: propagate changes to the right
+            for (let i = actualIndex; i < numTerms - 1; i++) {
+                // Enforce: next.a = curr.c, next.b = curr.d
+                newValues[i + 1].a = newValues[i].c;
+                newValues[i + 1].b = newValues[i].d;
+                
+                // Ensure next term is valid: a < b <= c < d
+                if (newValues[i + 1].b > newValues[i + 1].c) {
+                    newValues[i + 1].c = newValues[i + 1].b;
+                }
+                if (newValues[i + 1].c >= newValues[i + 1].d) {
+                    // Don't modify d of last term
+                    if (i + 1 < numTerms - 1) {
+                        newValues[i + 1].d = newValues[i + 1].c + epsilon;
+                    } else {
+                        // Last term: if c >= d, move c back
+                        newValues[i + 1].c = newValues[i + 1].d - epsilon;
+                        if (newValues[i + 1].c < newValues[i + 1].b) {
+                            newValues[i + 1].b = newValues[i + 1].c;
+                        }
+                    }
                 }
             }
             
-            if (editedParam === 'c' || editedParam === 'd') {
-                // Edited right boundary (c or d) -> propagate to next term's a/b
-                if (!isLast) {
-                    // next.a = curr.c, next.b = curr.d
-                    newValues[actualIndex + 1] = {
-                        ...newValues[actualIndex + 1],
-                        a: newValues[actualIndex].c,
-                        b: newValues[actualIndex].d,
-                    };
+            // Backward pass: propagate changes to the left
+            for (let i = actualIndex; i > 0; i--) {
+                // Enforce: prev.c = curr.a, prev.d = curr.b
+                newValues[i - 1].c = newValues[i].a;
+                newValues[i - 1].d = newValues[i].b;
+                
+                // Ensure prev term is valid: a < b <= c < d
+                if (newValues[i - 1].c < newValues[i - 1].b) {
+                    newValues[i - 1].b = newValues[i - 1].c;
+                }
+                if (newValues[i - 1].b <= newValues[i - 1].a) {
+                    // Don't modify a of first term
+                    if (i - 1 > 0) {
+                        newValues[i - 1].a = newValues[i - 1].b - epsilon;
+                    } else {
+                        // First term: if b <= a, move b forward
+                        newValues[i - 1].b = newValues[i - 1].a + epsilon;
+                        if (newValues[i - 1].b > newValues[i - 1].c) {
+                            newValues[i - 1].c = newValues[i - 1].b;
+                        }
+                    }
                 }
             }
             
-            // Enforce fixed boundaries:
-            // First term: a is fixed (slightly before start)
-            newValues[0] = {
-                ...newValues[0],
-                a: inputParameter.start - epsilon,
-            };
+            // Final enforcement of fixed boundaries
+            newValues[0].a = inputParameter.start - epsilon;
+            newValues[0].b = inputParameter.start;
+            newValues[numTerms - 1].c = inputParameter.end;
+            newValues[numTerms - 1].d = inputParameter.end + epsilon;
             
-            // Last term: d is fixed (slightly after end)
-            newValues[numTerms - 1] = {
-                ...newValues[numTerms - 1],
-                d: inputParameter.end + epsilon,
-            };
+            // Final validation: ensure all terms satisfy a < b <= c < d
+            for (let i = 0; i < numTerms; i++) {
+                const term = newValues[i];
+                if (term.a >= term.b) term.b = term.a + epsilon;
+                if (term.b > term.c) term.c = term.b;
+                if (term.c >= term.d) term.d = term.c + epsilon;
+            }
+            
+            // Re-apply fixed boundaries (in case validation changed them)
+            newValues[0].a = inputParameter.start - epsilon;
+            newValues[0].b = inputParameter.start;
+            newValues[numTerms - 1].c = inputParameter.end;
+            newValues[numTerms - 1].d = inputParameter.end + epsilon;
             
             return newValues;
         });

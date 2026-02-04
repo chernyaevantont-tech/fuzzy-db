@@ -159,7 +159,7 @@ const FuzzyGraph: React.FC<FuzzyGraphProps> = ({ start, end, units }) => {
         return () => {
             observer.disconnect();
         };
-    }, []);
+    }, [draw]);
 
     return (
         <canvas ref={canvasRef} height={300} />

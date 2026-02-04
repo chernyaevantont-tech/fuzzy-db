@@ -16,7 +16,7 @@ interface FuzzyOutputValueUnitProps {
     parameterEnd: number;
     isFirst: boolean;
     isLast: boolean;
-    onValueChange: (updated: FuzzyOutputValueResponse) => void;
+    onValueChange: (updated: FuzzyOutputValueResponse, editedParam?: 'a' | 'b' | 'c' | 'd') => void;
     onDelete: () => void;
 }
 
@@ -40,43 +40,102 @@ const FuzzyOutputValueUnit: React.FC<FuzzyOutputValueUnitProps> = ({
         const value = parseFloat(valueStr);
         if (isNaN(value)) return;
         
-        // Clamp to parameter range
-        const clampedValue = Math.max(parameterStart, Math.min(parameterEnd, value));
+        const epsilon = (parameterEnd - parameterStart) * 0.001;
+        
+        // Clamp strictly within parameter range (only epsilon margin for boundary terms)
+        const minAllowed = isFirst ? parameterStart - epsilon : parameterStart;
+        const maxAllowed = isLast ? parameterEnd + epsilon : parameterEnd;
+        let clampedValue = Math.max(minAllowed, Math.min(maxAllowed, value));
         
         let newValue = { ...fuzzyOutputValue };
+        
+        // Same logic as InputValueUnit - don't allow editing synced fields for middle terms
+        if (!isFirst && !isLast) {
+            if (param === 'a' || param === 'd') {
+                // These are synced from neighbors, don't allow direct editing
+                // But still process to trigger parent update which will sync properly
+                newValue[param] = clampedValue;
+                onValueChange(newValue, param);
+                return;
+            }
+        }
+        
         newValue[param] = clampedValue;
 
-        // Enforce constraints: a <= b <= c <= d (only within this term)
-        if (param === 'a') {
-            // For first term, a and b are fixed to start, so skip
-            if (!isFirst) {
-                if (newValue.a > newValue.c) newValue.c = newValue.a;
-                if (newValue.c > newValue.d) newValue.d = newValue.c;
+        // Enforce constraint within this term: a < b <= c < d
+        if (param === 'b') {
+            if (newValue.b <= newValue.a) {
+                if (isFirst) {
+                    newValue.b = newValue.a + epsilon;
+                    clampedValue = newValue.b;
+                } else {
+                    newValue.a = newValue.b - epsilon;
+                }
+            }
+            if (newValue.b > newValue.c) {
+                newValue.c = newValue.b;
+            }
+            if (newValue.c >= newValue.d) {
+                if (isLast) {
+                    newValue.c = newValue.d - epsilon;
+                } else {
+                    newValue.d = newValue.c + epsilon;
+                }
             }
         } else if (param === 'c') {
-            if (newValue.c < newValue.a) newValue.a = newValue.c;
-            // For last term, c and d are fixed to end, so skip d adjustment
-            if (!isLast) {
-                if (newValue.c > newValue.d) newValue.d = newValue.c;
+            if (newValue.c < newValue.b) {
+                newValue.b = newValue.c;
+                if (newValue.b <= newValue.a) {
+                    if (isFirst) {
+                        newValue.b = newValue.a + epsilon;
+                        newValue.c = newValue.b;
+                        clampedValue = newValue.c;
+                    } else {
+                        newValue.a = newValue.b - epsilon;
+                    }
+                }
+            }
+            if (newValue.c >= newValue.d) {
+                if (isLast) {
+                    newValue.c = newValue.d - epsilon;
+                    clampedValue = newValue.c;
+                } else {
+                    newValue.d = newValue.c + epsilon;
+                }
+            }
+        } else if (param === 'a') {
+            if (newValue.a >= newValue.b) {
+                newValue.b = newValue.a + epsilon;
+            }
+            if (newValue.b > newValue.c) {
+                newValue.c = newValue.b;
+            }
+            if (newValue.c >= newValue.d) {
+                newValue.d = newValue.c + epsilon;
             }
         } else if (param === 'd') {
-            // For last term, c and d are fixed to end
-            if (!isLast) {
-                if (newValue.d < newValue.c) newValue.c = newValue.d;
-                if (newValue.c < newValue.a) newValue.a = newValue.c;
+            if (newValue.d <= newValue.c) {
+                newValue.c = newValue.d - epsilon;
+            }
+            if (newValue.c < newValue.b) {
+                newValue.b = newValue.c;
+            }
+            if (newValue.b <= newValue.a) {
+                newValue.a = newValue.b - epsilon;
             }
         }
 
-        onValueChange(newValue);
+        onValueChange(newValue, param);
     }, [fuzzyOutputValue, parameterStart, parameterEnd, isFirst, isLast, onValueChange]);
 
-    // For first term: a and b are fixed to parameterStart (both disabled)
-    // For last term: c and d are fixed to parameterEnd (both disabled)
-    // For middle terms: a and b are synced with prev.d, c and d are synced with next.a
-    const aDisabled = isFirst;
-    const bDisabled = isFirst;
-    const cDisabled = isLast;
-    const dDisabled = isLast;
+    // Overlapping Ruspini partition (same as InputValueUnit):
+    // First term: a and b are fixed (start of range), c editable
+    // Last term: b editable, c and d are fixed (end of range)
+    // Middle terms: a synced with prev.c, b and c editable, d synced with next.b
+    const aDisabled = true;  // Always disabled - first term fixed, others synced from prev.c
+    const bDisabled = isFirst;  // Only first term: b is fixed to start
+    const cDisabled = isLast;   // Only last term: c is fixed to end
+    const dDisabled = true;   // Always disabled - last term fixed, others synced to next.b
 
     return (
         <div className={classes.Container}>
@@ -108,7 +167,7 @@ const FuzzyOutputValueUnit: React.FC<FuzzyOutputValueUnitProps> = ({
                         onChange={(e) => handleNumberChange('a', e.target.value)}
                         className={classes.NumberInput}
                         disabled={aDisabled}
-                        title={aDisabled ? "Фиксировано к началу диапазона" : "Синхронизируется с предыдущим термом"}
+                        title="Синхронизируется с предыдущим термом (= prev.c)"
                     />
                 </div>
                 <div className={classes.ParameterRow}>
@@ -122,7 +181,7 @@ const FuzzyOutputValueUnit: React.FC<FuzzyOutputValueUnitProps> = ({
                         onChange={(e) => handleNumberChange('b', e.target.value)}
                         className={classes.NumberInput}
                         disabled={bDisabled}
-                        title={bDisabled ? "Фиксировано к началу диапазона" : "Синхронизируется с предыдущим термом"}
+                        title={isFirst ? "Фиксировано (начало диапазона)" : "Начало плато (a < b, редактируемо)"}
                     />
                 </div>
                 <div className={classes.ParameterRow}>
@@ -136,7 +195,7 @@ const FuzzyOutputValueUnit: React.FC<FuzzyOutputValueUnitProps> = ({
                         onChange={(e) => handleNumberChange('c', e.target.value)}
                         className={classes.NumberInput}
                         disabled={cDisabled}
-                        title={cDisabled ? "Фиксировано к концу диапазона" : ""}
+                        title={isLast ? "Фиксировано (конец диапазона)" : "Конец плато (b ≤ c, редактируемо)"}
                     />
                 </div>
                 <div className={classes.ParameterRow}>
@@ -150,7 +209,7 @@ const FuzzyOutputValueUnit: React.FC<FuzzyOutputValueUnitProps> = ({
                         onChange={(e) => handleNumberChange('d', e.target.value)}
                         className={classes.NumberInput}
                         disabled={dDisabled}
-                        title={dDisabled ? "Фиксировано к концу диапазона" : ""}
+                        title="Синхронизируется со следующим термом (= next.b)"
                     />
                 </div>
             </div>

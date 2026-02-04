@@ -50,8 +50,12 @@ const InputValueUnit: React.FC<InputValueUnitProps> = ({
      * 
      * Editable fields:
      * - First term: b, c, d (a is fixed to start - epsilon)
-     * - Middle terms: a, b, c, d (all editable, synced with neighbors)
+     * - Middle terms: b, c (a and d are synced with neighbors)
      * - Last term: a, b, c (d is fixed to end + epsilon)
+     * 
+     * Key insight: Only allow editing of "independent" points:
+     * - b and c are independent (plateau boundaries)
+     * - a and d are dependent (overlap boundaries, synced with neighbors)
      */
     const handleNumberChange = useCallback((param: 'a' | 'b' | 'c' | 'd', valueStr: string) => {
         const value = parseFloat(valueStr);
@@ -59,61 +63,100 @@ const InputValueUnit: React.FC<InputValueUnitProps> = ({
         
         const epsilon = (parameterEnd - parameterStart) * 0.001;
         
-        // Clamp to reasonable range
-        let clampedValue = Math.max(parameterStart - epsilon * 10, Math.min(parameterEnd + epsilon * 10, value));
+        // Clamp strictly within parameter range (only epsilon margin for boundary terms)
+        // First term a can be slightly before start, last term d can be slightly after end
+        const minAllowed = isFirst ? parameterStart - epsilon : parameterStart;
+        const maxAllowed = isLast ? parameterEnd + epsilon : parameterEnd;
+        let clampedValue = Math.max(minAllowed, Math.min(maxAllowed, value));
         
         let newValue = { ...inputValue };
+        
+        // For middle terms, only allow editing b and c (plateau boundaries)
+        // a and d will be synced from neighbors
+        if (!isFirst && !isLast) {
+            if (param === 'a' || param === 'd') {
+                // These are synced from neighbors, don't allow direct editing
+                // But still process to trigger parent update which will sync properly
+                newValue[param] = clampedValue;
+                onValueChange(newValue, param);
+                return;
+            }
+        }
+        
         newValue[param] = clampedValue;
 
         // Enforce constraint within this term: a < b <= c < d
-        // Adjust adjacent values to maintain validity
-        if (param === 'a') {
-            // a changed: ensure a < b
-            if (newValue.a >= newValue.b) {
-                newValue.b = newValue.a + epsilon;
-            }
-            // Cascade: if b > c, adjust c
-            if (newValue.b > newValue.c) {
-                newValue.c = newValue.b;
-            }
-            // Cascade: if c >= d, adjust d
-            if (newValue.c >= newValue.d) {
-                newValue.d = newValue.c + epsilon;
-            }
-        } else if (param === 'b') {
-            // b changed: ensure a < b <= c
+        // Adjust other values to maintain validity, respecting neighbor sync points
+        if (param === 'b') {
+            // b changed: ensure a < b <= c < d
+            // a is synced from prev term (if not first), so adjust it locally only
             if (newValue.b <= newValue.a) {
-                newValue.a = newValue.b - epsilon;
+                if (isFirst) {
+                    // First term: a is fixed
+                    newValue.b = newValue.a + epsilon;
+                    clampedValue = newValue.b;
+                } else {
+                    // Will be synced from neighbor
+                    newValue.a = newValue.b - epsilon;
+                }
             }
+            // Ensure b <= c
             if (newValue.b > newValue.c) {
                 newValue.c = newValue.b;
             }
-            // Cascade: if c >= d, adjust d
+            // Ensure c < d
             if (newValue.c >= newValue.d) {
-                newValue.d = newValue.c + epsilon;
+                if (isLast) {
+                    // Last term: d is fixed
+                    newValue.c = newValue.d - epsilon;
+                } else {
+                    newValue.d = newValue.c + epsilon;
+                }
             }
         } else if (param === 'c') {
             // c changed: ensure b <= c < d
             if (newValue.c < newValue.b) {
                 newValue.b = newValue.c;
+                // Cascade: ensure a < b
+                if (newValue.b <= newValue.a) {
+                    if (isFirst) {
+                        newValue.b = newValue.a + epsilon;
+                        newValue.c = newValue.b;
+                        clampedValue = newValue.c;
+                    } else {
+                        newValue.a = newValue.b - epsilon;
+                    }
+                }
             }
-            // Cascade: if b <= a, adjust a
-            if (newValue.b <= newValue.a) {
-                newValue.a = newValue.b - epsilon;
+            // Ensure c < d
+            if (newValue.c >= newValue.d) {
+                if (isLast) {
+                    // Last term: d is fixed
+                    newValue.c = newValue.d - epsilon;
+                    clampedValue = newValue.c;
+                } else {
+                    newValue.d = newValue.c + epsilon;
+                }
+            }
+        } else if (param === 'a') {
+            // Only for first term or when syncing
+            if (newValue.a >= newValue.b) {
+                newValue.b = newValue.a + epsilon;
+            }
+            if (newValue.b > newValue.c) {
+                newValue.c = newValue.b;
             }
             if (newValue.c >= newValue.d) {
                 newValue.d = newValue.c + epsilon;
             }
         } else if (param === 'd') {
-            // d changed: ensure c < d
+            // Only for last term or when syncing
             if (newValue.d <= newValue.c) {
                 newValue.c = newValue.d - epsilon;
             }
-            // Cascade: if c < b, adjust b
             if (newValue.c < newValue.b) {
                 newValue.b = newValue.c;
             }
-            // Cascade: if b <= a, adjust a
             if (newValue.b <= newValue.a) {
                 newValue.a = newValue.b - epsilon;
             }
@@ -121,15 +164,16 @@ const InputValueUnit: React.FC<InputValueUnitProps> = ({
 
         // Send to parent with info about which param was edited
         onValueChange(newValue, param);
-    }, [inputValue, parameterStart, parameterEnd, onValueChange]);
+    }, [inputValue, parameterStart, parameterEnd, isFirst, isLast, onValueChange]);
 
     // Overlapping Ruspini partition:
-    // Only first term's 'a' and last term's 'd' are fixed (disabled)
-    // All other points are editable and sync with adjacent terms
-    const aDisabled = isFirst;  // First term: a is fixed to start - epsilon
-    const bDisabled = false;    // Always editable
-    const cDisabled = false;    // Always editable  
-    const dDisabled = isLast;   // Last term: d is fixed to end + epsilon
+    // First term: a and b are fixed (start of range), c editable
+    // Last term: b editable, c and d are fixed (end of range)
+    // Middle terms: a synced with prev.c, b and c editable, d synced with next.b
+    const aDisabled = true;  // Always disabled - first term fixed, others synced from prev.c
+    const bDisabled = isFirst;  // Only first term: b is fixed to start
+    const cDisabled = isLast;   // Only last term: c is fixed to end
+    const dDisabled = true;   // Always disabled - last term fixed, others synced to next.b
 
     // Validation state for visual feedback
     const isValid = useMemo(() => {
@@ -176,7 +220,7 @@ const InputValueUnit: React.FC<InputValueUnitProps> = ({
                         onChange={(e) => handleNumberChange('b', e.target.value)}
                         className={classes.NumberInput}
                         disabled={bDisabled}
-                        title="Начало плато (a < b, = prev.d)"
+                        title={isFirst ? "Фиксировано (начало диапазона)" : "Начало плато (a < b, редактируемо)"}
                     />
                 </div>
                 <div className={classes.ParameterRow}>
@@ -188,7 +232,7 @@ const InputValueUnit: React.FC<InputValueUnitProps> = ({
                         onChange={(e) => handleNumberChange('c', e.target.value)}
                         className={classes.NumberInput}
                         disabled={cDisabled}
-                        title="Конец плато (b ≤ c, = next.a)"
+                        title={isLast ? "Фиксировано (конец диапазона)" : "Конец плато (b ≤ c, редактируемо)"}
                     />
                 </div>
                 <div className={classes.ParameterRow}>

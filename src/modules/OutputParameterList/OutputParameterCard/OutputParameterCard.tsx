@@ -36,63 +36,109 @@ const OutputParameterCard: React.FC<OutputParameterCardProps> = ({
         setIsDirty(false);
     }, [outputParameter.fuzzy_output_values]);
 
+    // Reset local state when switching to different parameter
+    useEffect(() => {
+        setLocalOutputValues([...outputParameter.fuzzy_output_values]);
+        setIsDirty(false);
+    }, [outputParameter.id]);
+
     // Sort fuzzy output values by 'a' for consistent ordering with graph
     const sortedFuzzyOutputValues = [...localOutputValues].sort((a, b) => a.a - b.a);
 
-    // Update a single term and sync adjacent terms
-    const handleTermChange = useCallback((updatedValue: FuzzyOutputValueResponse) => {
+    // Update a single term and sync adjacent terms using Ruspini partition rules:
+    // Same logic as input parameters - overlapping trapezoidal membership functions
+    // A.c = B.a, A.d = B.b (overlapping terms)
+    // Constraint: a < b <= c < d
+    const handleTermChange = useCallback((updatedValue: FuzzyOutputValueResponse, editedParam?: 'a' | 'b' | 'c' | 'd') => {
         setLocalOutputValues(prevValues => {
             const sorted = [...prevValues].sort((a, b) => a.a - b.a);
-            const newValues = [...sorted];
             
             // Find the actual index in sorted array
             const actualIndex = sorted.findIndex(v => v.id === updatedValue.id);
             if (actualIndex === -1) return prevValues;
             
-            newValues[actualIndex] = updatedValue;
+            // Create a copy with the updated value
+            const newValues = [...sorted];
+            newValues[actualIndex] = { ...updatedValue };
             
-            const isFirst = actualIndex === 0;
-            const isLast = actualIndex === newValues.length - 1;
+            const numTerms = newValues.length;
+            const epsilon = (outputParameter.end - outputParameter.start) * 0.001;
             
-            // First term: a = b = parameterStart
-            if (isFirst) {
-                newValues[actualIndex] = {
-                    ...newValues[actualIndex],
-                    a: outputParameter.start,
-                    b: outputParameter.start,
-                };
+            // Use same strategy as InputParameterCard: maintain Ruspini partition by propagating changes
+            
+            // First, ensure internal consistency of edited term
+            const curr = newValues[actualIndex];
+            if (curr.a >= curr.b) curr.b = curr.a + epsilon;
+            if (curr.b > curr.c) curr.c = curr.b;
+            if (curr.c >= curr.d) curr.d = curr.c + epsilon;
+            
+            // Forward pass: propagate changes to the right
+            for (let i = actualIndex; i < numTerms - 1; i++) {
+                // Enforce: next.a = curr.c, next.b = curr.d
+                newValues[i + 1].a = newValues[i].c;
+                newValues[i + 1].b = newValues[i].d;
+                
+                // Ensure next term is valid: a < b <= c < d
+                if (newValues[i + 1].b > newValues[i + 1].c) {
+                    newValues[i + 1].c = newValues[i + 1].b;
+                }
+                if (newValues[i + 1].c >= newValues[i + 1].d) {
+                    // Don't modify d of last term
+                    if (i + 1 < numTerms - 1) {
+                        newValues[i + 1].d = newValues[i + 1].c + epsilon;
+                    } else {
+                        // Last term: if c >= d, move c back
+                        newValues[i + 1].c = newValues[i + 1].d - epsilon;
+                        if (newValues[i + 1].c < newValues[i + 1].b) {
+                            newValues[i + 1].b = newValues[i + 1].c;
+                        }
+                    }
+                }
             }
             
-            // Last term: c = d = parameterEnd
-            if (isLast) {
-                newValues[actualIndex] = {
-                    ...newValues[actualIndex],
-                    c: outputParameter.end,
-                    d: outputParameter.end,
-                };
+            // Backward pass: propagate changes to the left
+            for (let i = actualIndex; i > 0; i--) {
+                // Enforce: prev.c = curr.a, prev.d = curr.b
+                newValues[i - 1].c = newValues[i].a;
+                newValues[i - 1].d = newValues[i].b;
+                
+                // Ensure prev term is valid: a < b <= c < d
+                if (newValues[i - 1].c < newValues[i - 1].b) {
+                    newValues[i - 1].b = newValues[i - 1].c;
+                }
+                if (newValues[i - 1].b <= newValues[i - 1].a) {
+                    // Don't modify a of first term
+                    if (i - 1 > 0) {
+                        newValues[i - 1].a = newValues[i - 1].b - epsilon;
+                    } else {
+                        // First term: if b <= a, move b forward
+                        newValues[i - 1].b = newValues[i - 1].a + epsilon;
+                        if (newValues[i - 1].b > newValues[i - 1].c) {
+                            newValues[i - 1].c = newValues[i - 1].b;
+                        }
+                    }
+                }
             }
             
-            // Sync with previous term: prev.c = prev.d = current.a
-            if (actualIndex > 0) {
-                const prev = newValues[actualIndex - 1];
-                const currentA = newValues[actualIndex].a;
-                newValues[actualIndex - 1] = {
-                    ...prev,
-                    c: currentA,
-                    d: currentA,
-                };
+            // Final enforcement of fixed boundaries
+            newValues[0].a = outputParameter.start - epsilon;
+            newValues[0].b = outputParameter.start;
+            newValues[numTerms - 1].c = outputParameter.end;
+            newValues[numTerms - 1].d = outputParameter.end + epsilon;
+            
+            // Final validation: ensure all terms satisfy a < b <= c < d
+            for (let i = 0; i < numTerms; i++) {
+                const term = newValues[i];
+                if (term.a >= term.b) term.b = term.a + epsilon;
+                if (term.b > term.c) term.c = term.b;
+                if (term.c >= term.d) term.d = term.c + epsilon;
             }
             
-            // Sync with next term: next.a = next.b = current.d
-            if (actualIndex < newValues.length - 1) {
-                const next = newValues[actualIndex + 1];
-                const currentD = newValues[actualIndex].d;
-                newValues[actualIndex + 1] = {
-                    ...next,
-                    a: currentD,
-                    b: currentD,
-                };
-            }
+            // Re-apply fixed boundaries (in case validation changed them)
+            newValues[0].a = outputParameter.start - epsilon;
+            newValues[0].b = outputParameter.start;
+            newValues[numTerms - 1].c = outputParameter.end;
+            newValues[numTerms - 1].d = outputParameter.end + epsilon;
             
             return newValues;
         });
@@ -162,7 +208,7 @@ const OutputParameterCard: React.FC<OutputParameterCardProps> = ({
                         parameterEnd={outputParameter.end}
                         isFirst={index === 0}
                         isLast={index === sortedFuzzyOutputValues.length - 1}
-                        onValueChange={(updated: FuzzyOutputValueResponse) => handleTermChange(updated)}
+                        onValueChange={(updated: FuzzyOutputValueResponse, editedParam?: 'a' | 'b' | 'c' | 'd') => handleTermChange(updated, editedParam)}
                         onDelete={() => handleDeleteTerm(fuzzyOutputValue.id)}
                     />
                 )

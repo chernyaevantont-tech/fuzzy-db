@@ -50,38 +50,74 @@ impl FuzzyOutputValueRepository for SqliteFuzzyOutputValueRepository {
             let d: f32;
 
             if number_of_fuzzy_output_values > 0 {
-                let (prev_id, _a, _d): (i64, f32, f32) = transaction
+                // Get the last term (rightmost) to split it
+                let (prev_id, prev_a, prev_b, _prev_c, prev_d): (i64, f32, f32, f32, f32) = transaction
                     .query_row(
-                        "SELECT id, a, d FROM fuzzy_output_value WHERE output_parameter_id = ? ORDER BY d DESC LIMIT 1",
+                        "SELECT id, a, b, c, d FROM fuzzy_output_value WHERE output_parameter_id = ? ORDER BY d DESC LIMIT 1",
                         params![model.output_parameter_id],
-                        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
                     )
                     .map_err(|e| DomainError::Internal(e.to_string()))?;
 
-                let mid = _a + (_d - _a) / 2.0;
-                let pivot = (_d - _a) / 8.0;
-
-                let prev_a = _a;
-                let prev_b = _a + pivot;
-                let prev_c = mid - pivot;
-                let prev_d = mid + pivot;
-
-                transaction
-                    .execute(
-                        "UPDATE fuzzy_output_value SET a = ?, b = ?, c = ?, d = ? WHERE id = ?",
-                        params![prev_a, prev_b, prev_c, prev_d, prev_id],
-                    )
-                    .map_err(|e| DomainError::Internal(e.to_string()))?;
-
-                a = mid - pivot;
-                b = mid + pivot;
-                c = _d - pivot;
-                d = _d;
+                // Split the rightmost term into two overlapping terms following Ruspini partition rules
+                // For overlapping terms: prev.c = next.a, prev.d = next.b
+                // Constraint: a < b <= c < d
+                
+                let epsilon = (output_parameter_end - output_parameter_start) * 0.001;
+                let is_last_term = (prev_d - output_parameter_end).abs() < epsilon * 2.0;
+                
+                if is_last_term {
+                    // Last term spans to end, split it in middle
+                    // Old term will be first half, new term will be second half
+                    let range = prev_d - prev_b; // total range from plateau start to end
+                    let mid = prev_b + range / 2.0;
+                    let overlap = range / 4.0; // overlap width
+                    
+                    // Update previous (now first) term: keep a,b same, but shorten right side
+                    let new_prev_c = mid - overlap;
+                    let new_prev_d = mid + overlap;
+                    
+                    transaction
+                        .execute(
+                            "UPDATE fuzzy_output_value SET c = ?, d = ? WHERE id = ?",
+                            params![new_prev_c, new_prev_d, prev_id],
+                        )
+                        .map_err(|e| DomainError::Internal(e.to_string()))?;
+                    
+                    // New (last) term: overlaps with previous, extends to end
+                    a = new_prev_c;  // = prev.c (overlap constraint)
+                    b = new_prev_d;  // = prev.d (overlap constraint)
+                    c = output_parameter_end;
+                    d = output_parameter_end + epsilon;
+                } else {
+                    // Not last term, just split it in middle
+                    let mid = (prev_a + prev_d) / 2.0;
+                    let quarter = (prev_d - prev_a) / 4.0;
+                    
+                    // Update previous term: keep left side, shorten right
+                    let new_prev_c = mid - quarter;
+                    let new_prev_d = mid + quarter;
+                    
+                    transaction
+                        .execute(
+                            "UPDATE fuzzy_output_value SET c = ?, d = ? WHERE id = ?",
+                            params![new_prev_c, new_prev_d, prev_id],
+                        )
+                        .map_err(|e| DomainError::Internal(e.to_string()))?;
+                    
+                    // New term: overlaps with previous
+                    a = new_prev_c;
+                    b = new_prev_d;
+                    c = prev_d - quarter;
+                    d = prev_d;
+                }
             } else {
-                a = output_parameter_start;
-                b = output_parameter_start + (output_parameter_end - output_parameter_start) * 0.25;
-                c = output_parameter_start + (output_parameter_end - output_parameter_start) * 0.75;
-                d = output_parameter_end;
+                // First term: covers entire range
+                let epsilon = (output_parameter_end - output_parameter_start) * 0.001;
+                a = output_parameter_start - epsilon;
+                b = output_parameter_start;
+                c = output_parameter_end;
+                d = output_parameter_end + epsilon;
             }
 
             let mut stmt = transaction
@@ -274,6 +310,26 @@ impl FuzzyOutputValueRepository for SqliteFuzzyOutputValueRepository {
     }
 
     fn update_by_id(&self, id: i64, model: &FuzzyOutputValue) -> Result<(), DomainError> {
+        // Validate Ruspini partition constraints: a < b <= c < d (same as input_value)
+        if model.a >= model.b {
+            return Err(DomainError::Validation(format!(
+                "Invalid fuzzy_output_value: a ({}) must be < b ({})",
+                model.a, model.b
+            )));
+        }
+        if model.b > model.c {
+            return Err(DomainError::Validation(format!(
+                "Invalid fuzzy_output_value: b ({}) must be <= c ({})",
+                model.b, model.c
+            )));
+        }
+        if model.c >= model.d {
+            return Err(DomainError::Validation(format!(
+                "Invalid fuzzy_output_value: c ({}) must be < d ({})",
+                model.c, model.d
+            )));
+        }
+        
         let mut conn = self
             .conn
             .lock()
