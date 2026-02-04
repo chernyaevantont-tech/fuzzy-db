@@ -71,18 +71,6 @@ const InputValueUnit: React.FC<InputValueUnitProps> = ({
         
         let newValue = { ...inputValue };
         
-        // For middle terms, only allow editing b and c (plateau boundaries)
-        // a and d will be synced from neighbors
-        if (!isFirst && !isLast) {
-            if (param === 'a' || param === 'd') {
-                // These are synced from neighbors, don't allow direct editing
-                // But still process to trigger parent update which will sync properly
-                newValue[param] = clampedValue;
-                onValueChange(newValue, param);
-                return;
-            }
-        }
-        
         newValue[param] = clampedValue;
 
         // Enforce constraint within this term: a < b <= c < d
@@ -167,13 +155,13 @@ const InputValueUnit: React.FC<InputValueUnitProps> = ({
     }, [inputValue, parameterStart, parameterEnd, isFirst, isLast, onValueChange]);
 
     // Overlapping Ruspini partition:
-    // First term: a and b are fixed (start of range), c editable
-    // Last term: b editable, c and d are fixed (end of range)
-    // Middle terms: a synced with prev.c, b and c editable, d synced with next.b
-    const aDisabled = true;  // Always disabled - first term fixed, others synced from prev.c
+    // First term: a and b are fixed (start of range), c and d editable
+    // Last term: a and b editable, c and d are fixed (end of range)
+    // Middle terms: all fields editable (a affects prev.c, d affects next.b)
+    const aDisabled = isFirst;  // Only first term: a is fixed to start - epsilon
     const bDisabled = isFirst;  // Only first term: b is fixed to start
     const cDisabled = isLast;   // Only last term: c is fixed to end
-    const dDisabled = true;   // Always disabled - last term fixed, others synced to next.b
+    const dDisabled = isLast;   // Only last term: d is fixed to end + epsilon
 
     // Validation state for visual feedback
     const isValid = useMemo(() => {

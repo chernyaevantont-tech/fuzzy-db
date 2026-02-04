@@ -49,17 +49,6 @@ const FuzzyOutputValueUnit: React.FC<FuzzyOutputValueUnitProps> = ({
         
         let newValue = { ...fuzzyOutputValue };
         
-        // Same logic as InputValueUnit - don't allow editing synced fields for middle terms
-        if (!isFirst && !isLast) {
-            if (param === 'a' || param === 'd') {
-                // These are synced from neighbors, don't allow direct editing
-                // But still process to trigger parent update which will sync properly
-                newValue[param] = clampedValue;
-                onValueChange(newValue, param);
-                return;
-            }
-        }
-        
         newValue[param] = clampedValue;
 
         // Enforce constraint within this term: a < b <= c < d
@@ -129,13 +118,13 @@ const FuzzyOutputValueUnit: React.FC<FuzzyOutputValueUnitProps> = ({
     }, [fuzzyOutputValue, parameterStart, parameterEnd, isFirst, isLast, onValueChange]);
 
     // Overlapping Ruspini partition (same as InputValueUnit):
-    // First term: a and b are fixed (start of range), c editable
-    // Last term: b editable, c and d are fixed (end of range)
-    // Middle terms: a synced with prev.c, b and c editable, d synced with next.b
-    const aDisabled = true;  // Always disabled - first term fixed, others synced from prev.c
+    // First term: a and b are fixed (start of range), c and d editable
+    // Last term: a and b editable, c and d are fixed (end of range)
+    // Middle terms: all fields editable (a affects prev.c, d affects next.b)
+    const aDisabled = isFirst;  // Only first term: a is fixed to start - epsilon
     const bDisabled = isFirst;  // Only first term: b is fixed to start
     const cDisabled = isLast;   // Only last term: c is fixed to end
-    const dDisabled = true;   // Always disabled - last term fixed, others synced to next.b
+    const dDisabled = isLast;   // Only last term: d is fixed to end + epsilon
 
     return (
         <div className={classes.Container}>
@@ -167,7 +156,7 @@ const FuzzyOutputValueUnit: React.FC<FuzzyOutputValueUnitProps> = ({
                         onChange={(e) => handleNumberChange('a', e.target.value)}
                         className={classes.NumberInput}
                         disabled={aDisabled}
-                        title="Синхронизируется с предыдущим термом (= prev.c)"
+                        title={isFirst ? "Фиксировано (начало диапазона)" : "Левая граница (влияет на prev.c)"}
                     />
                 </div>
                 <div className={classes.ParameterRow}>
@@ -209,7 +198,7 @@ const FuzzyOutputValueUnit: React.FC<FuzzyOutputValueUnitProps> = ({
                         onChange={(e) => handleNumberChange('d', e.target.value)}
                         className={classes.NumberInput}
                         disabled={dDisabled}
-                        title="Синхронизируется со следующим термом (= next.b)"
+                        title={isLast ? "Фиксировано (конец диапазона)" : "Правая граница (влияет на next.b)"}
                     />
                 </div>
             </div>
