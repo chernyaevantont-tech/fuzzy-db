@@ -12,15 +12,22 @@ interface DetailedFuzzyInferenceProps {
 }
 
 // Вычисление степени принадлежности для трапециевидной функции
+// Трапеция задается четырьмя точками: a, b, c, d
+// μ(x) = 0 при x ≤ a или x ≥ d
+// μ(x) = (x-a)/(b-a) при a < x < b (левый склон)
+// μ(x) = 1 при b ≤ x ≤ c (плато)
+// μ(x) = (d-x)/(d-c) при c < x < d (правый склон)
 const trapezoidalMembership = (x: number, a: number, b: number, c: number, d: number): number => {
-    if (x <= a || x >= d) return 0;
+    if (x <= a) return 0;
+    if (x >= d) return 0;
     if (x >= b && x <= c) return 1;
     if (x > a && x < b) return (x - a) / (b - a);
     if (x > c && x < d) return (d - x) / (d - c);
     return 0;
 };
 
-// Центроид для дефаззификации
+// Центроид для дефаззификации (метод центра тяжести)
+// x* = Σ(x·μ(x)) / Σ(μ(x))
 const centroidDefuzzification = (
     fuzzySet: { x: number; mu: number }[]
 ): number => {
@@ -106,28 +113,54 @@ const DetailedFuzzyInference: React.FC<DetailedFuzzyInferenceProps> = ({
         rules.forEach((rule) => {
             if (!rule.fuzzy_output_value_id) return;
             
-            // Parse input_value_ids - format is |1||2||3|
+            // Parse input_value_ids - format is |1||2||3| (sorted by ID, not by parameter order!)
             const inputTermIds = rule.input_value_ids
                 .split('|')
                 .filter(s => s.trim() !== '')
                 .map(Number);
+            
             if (inputTermIds.length !== inputParameters.length) return;
+
+            // Build a map from inputValueId to {param, term, mu}
+            const termMap = new Map<number, { param: InputParameterResponse; term: any; mu: number }>();
+            
+            inputParameters.forEach((param) => {
+                param.input_values.forEach((term) => {
+                    if (inputTermIds.includes(term.id)) {
+                        const mu = fuzzificationResults[param.id][term.id] || 0;
+                        termMap.set(term.id, { param, term, mu });
+                    }
+                });
+            });
+
+            // Check if we found all input terms for all parameters
+            if (termMap.size !== inputParameters.length) return;
+
+            // Verify each parameter has exactly one term in the rule
+            const paramsInRule = new Set<number>();
+            for (const { param } of termMap.values()) {
+                if (paramsInRule.has(param.id)) {
+                    // Multiple terms from same parameter - invalid rule
+                    return;
+                }
+                paramsInRule.add(param.id);
+            }
 
             // Вычисляем минимальную степень принадлежности (AND операция)
             let minMu = 1;
             const inputCombinationParts: string[] = [];
-            inputTermIds.forEach((inputValueId, index) => {
-                const param = inputParameters[index];
-                const mu = fuzzificationResults[param.id][inputValueId] || 0;
-                minMu = Math.min(minMu, mu);
-                const term = param.input_values.find(iv => iv.id === inputValueId);
-                if (term) {
-                    inputCombinationParts.push(`${param.name}=${term.value}(${mu.toFixed(3)})`);
-                }
-            });
+            
+            for (const inputValueId of inputTermIds) {
+                const data = termMap.get(inputValueId);
+                if (!data) return; // Should not happen
+                
+                minMu = Math.min(minMu, data.mu);
+                inputCombinationParts.push(`${data.param.name}=${data.term.value}(${data.mu.toFixed(3)})`);
+            }
 
             if (minMu > 0) {
-                // Находим выходной параметр и терм
+                // Находим выходной параметр и терм для этого правила
+                // Агрегация: для каждого выходного терма берем максимум из всех правил (OR)
                 for (const outParam of outputParameters) {
                     const outputTerm = outParam.fuzzy_output_values.find(
                         (fov) => fov.id === rule.fuzzy_output_value_id
@@ -151,24 +184,32 @@ const DetailedFuzzyInference: React.FC<DetailedFuzzyInferenceProps> = ({
             }
         });
 
-        // Шаг 3: Дефаззификация методом центроида
+        // Шаг 3: Дефаззификация методом центроида (центра тяжести)
+        // Для каждого выходного параметра строим результирующую нечеткую функцию
+        // путем объединения всех активированных выходных термов
         const crispOutputs: Record<number, number> = {};
         outputParameters.forEach((outParam) => {
             const fuzzySet: { x: number; mu: number }[] = [];
             const resolution = 100;
             const step = (outParam.end - outParam.start) / resolution;
 
+            // Для каждой точки x в диапазоне выходного параметра
             for (let x = outParam.start; x <= outParam.end; x += step) {
                 let mu = 0;
+                // Объединяем все выходные термы через max (OR-операция)
                 outParam.fuzzy_output_values.forEach((fov) => {
                     const ruleStrength = aggregatedOutputs[outParam.id][fov.id] || 0;
+                    // Вычисляем степень принадлежности терма в точке x
                     const termMu = trapezoidalMembership(x, fov.a, fov.b, fov.c, fov.d);
+                    // "Обрезаем" функцию принадлежности на уровне силы правила (min-активация)
                     const clippedMu = Math.min(ruleStrength, termMu);
+                    // Берем максимум из всех обрезанных функций
                     mu = Math.max(mu, clippedMu);
                 });
                 fuzzySet.push({ x, mu });
             }
 
+            // Вычисляем центр тяжести результирующей нечеткой функции
             crispOutputs[outParam.id] = centroidDefuzzification(fuzzySet);
         });
 

@@ -11,14 +11,23 @@ interface UserOutputProps {
     outputParameters: OutputParameterResponse[];
 }
 
+// Вычисление степени принадлежности для трапециевидной функции
+// Трапеция задается четырьмя точками: a, b, c, d
+// μ(x) = 0 при x ≤ a или x ≥ d
+// μ(x) = (x-a)/(b-a) при a < x < b (левый склон)
+// μ(x) = 1 при b ≤ x ≤ c (плато)
+// μ(x) = (d-x)/(d-c) при c < x < d (правый склон)
 const trapezoidalMembership = (x: number, a: number, b: number, c: number, d: number): number => {
-    if (x <= a || x >= d) return 0;
+    if (x <= a) return 0;
+    if (x >= d) return 0;
     if (x >= b && x <= c) return 1;
     if (x > a && x < b) return (x - a) / (b - a);
     if (x > c && x < d) return (d - x) / (d - c);
     return 0;
 };
 
+// Центроид для дефаззификации (метод центра тяжести)
+// x* = Σ(x·μ(x)) / Σ(μ(x))
 const centroidDefuzzification = (fuzzySet: { x: number; mu: number }[]): number => {
     let numerator = 0;
     let denominator = 0;
@@ -91,19 +100,46 @@ const UserOutput: React.FC<UserOutputProps> = ({
         rules.forEach((rule) => {
             if (!rule.fuzzy_output_value_id) return;
             
-            // Parse input_value_ids - format is |1||2||3|
+            // Parse input_value_ids - format is |1||2||3| (sorted by ID, not by parameter order!)
             const inputTermIds = rule.input_value_ids
                 .split('|')
                 .filter(s => s.trim() !== '')
                 .map(Number);
+            
             if (inputTermIds.length !== inputParameters.length) return;
 
-            let minMu = 1;
-            inputTermIds.forEach((inputValueId, index) => {
-                const param = inputParameters[index];
-                const mu = fuzzificationResults[param.id][inputValueId] || 0;
-                minMu = Math.min(minMu, mu);
+            // Build a map from inputValueId to {param, mu}
+            const termMap = new Map<number, { paramId: number; mu: number }>();
+            
+            inputParameters.forEach((param) => {
+                param.input_values.forEach((term) => {
+                    if (inputTermIds.includes(term.id)) {
+                        const mu = fuzzificationResults[param.id][term.id] || 0;
+                        termMap.set(term.id, { paramId: param.id, mu });
+                    }
+                });
             });
+
+            // Check if we found all input terms for all parameters
+            if (termMap.size !== inputParameters.length) return;
+
+            // Verify each parameter has exactly one term in the rule
+            const paramsInRule = new Set<number>();
+            for (const { paramId } of termMap.values()) {
+                if (paramsInRule.has(paramId)) {
+                    // Multiple terms from same parameter - invalid rule
+                    return;
+                }
+                paramsInRule.add(paramId);
+            }
+
+            // Вычисляем минимальную степень принадлежности (AND операция)
+            let minMu = 1;
+            for (const inputValueId of inputTermIds) {
+                const data = termMap.get(inputValueId);
+                if (!data) return; // Should not happen
+                minMu = Math.min(minMu, data.mu);
+            }
 
             if (minMu > 0) {
                 for (const outParam of outputParameters) {
