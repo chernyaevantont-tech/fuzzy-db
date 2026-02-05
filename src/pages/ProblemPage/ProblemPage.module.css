@@ -14,7 +14,7 @@
 
 .Content {
     height: 100%;
-    flex-grow: 1;
+    width: calc(100% - 35px);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -25,6 +25,7 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    min-width: 0; 
 }
 
 .SelectedIcon::after {

@@ -3,14 +3,15 @@
     height: 100%;
     overflow: auto;
     position: relative;
+    min-width: 0; /* Позволяет flex-элементу уменьшаться */
+    flex-shrink: 1; /* Позволяет контейнеру сжиматься */
 }
 
 .Table {
-    display: flex;
+    display: inline-flex;
     flex-direction: column;
     gap: 2px;
-    width: fit-content;
-    min-width: 100%;
+    min-width: min-content; /* Минимальная ширина основана на содержимом */
 }
 
 .TableRow {
@@ -18,12 +19,15 @@
     gap: 2px;
 }
 
+.CellContainer {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+}
+
 .TableCell {
     padding: 0.5rem;
     border: 1px solid var(--border-color);
-    width: 150px;
-    min-width: 150px;
-    max-width: 150px;
     text-align: center;
     font-family: inherit;
     font-size: 0.9rem;
@@ -33,6 +37,23 @@
     overflow: hidden;
     text-overflow: ellipsis;
     box-sizing: border-box;
+}
+
+.ResizeHandle {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    cursor: col-resize;
+    background: transparent;
+    z-index: 10;
+    transition: background 0.2s ease;
+}
+
+.ResizeHandle:hover {
+    background: var(--accent-color);
+    opacity: 0.5;
 }
 
 .TableCell:focus {
@@ -72,6 +93,5 @@
 .UneditableCell {
     background: var(--disabled-background);
     color: var(--disabled-text-color);
-    cursor: not-allowed;
     font-weight: 600;
 }

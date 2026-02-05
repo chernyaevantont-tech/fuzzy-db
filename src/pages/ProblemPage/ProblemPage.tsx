@@ -22,7 +22,7 @@ const ProblemPage = () => {
     const [inputParameters, setInputParameters] = useState<InputParameterResponse[]>([]);
     const [outputParameters, setOutputParameters] = useState<OutputParameterResponse[]>([]);
     const [dataVersion, setDataVersion] = useState(0);
-    
+
     // Состояние открытости карточек параметров (по ID параметра)
     const [openInputCards, setOpenInputCards] = useState<Record<number, boolean>>({});
     const [openOutputCards, setOpenOutputCards] = useState<Record<number, boolean>>({});
@@ -107,40 +107,40 @@ const ProblemPage = () => {
                         <Routes>
                             <Route path='/' element={<Navigate to="table" />} />
                             <Route path="table" element={
-                                <RulesTable 
+                                <RulesTable
                                     problemId={prevProblem?.id ?? 0}
                                     inputParameters={inputParameters}
                                     outputParameters={outputParameters}
                                 />
                             } />
                             <Route path="user-output" element={<div>Пользовательский вывод</div>} />
-                        <Route path='input-parameters' element={
-                            <InputParameterList 
-                                key={`input-${dataVersion}`}
-                                inputParameters={inputParameters} 
-                                setInputParameters={setInputParameters}
-                                refetchData={fetchData}
-                                openCards={openInputCards}
-                                setOpenCards={setOpenInputCards}
-                            />
-                        } />
-                        <Route path='output-parameters' element={
-                            <OutputParameterList 
-                                key={`output-${dataVersion}`}
-                                outputParameters={outputParameters} 
-                                setOutputParameters={setOutputParameters}
-                                refetchData={fetchData}
-                                openCards={openOutputCards}
-                                setOpenCards={setOpenOutputCards}
-                            />
-                        } />
-                        <Route path='evaluation' element={
-                            <FuzzyEvaluation 
-                                problemId={prevProblem?.id ?? 0}
-                                inputParameters={inputParameters}
-                            />
-                        } />
-                    </Routes>
+                            <Route path='input-parameters' element={
+                                <InputParameterList
+                                    key={`input-${dataVersion}`}
+                                    inputParameters={inputParameters}
+                                    setInputParameters={setInputParameters}
+                                    refetchData={fetchData}
+                                    openCards={openInputCards}
+                                    setOpenCards={setOpenInputCards}
+                                />
+                            } />
+                            <Route path='output-parameters' element={
+                                <OutputParameterList
+                                    key={`output-${dataVersion}`}
+                                    outputParameters={outputParameters}
+                                    setOutputParameters={setOutputParameters}
+                                    refetchData={fetchData}
+                                    openCards={openOutputCards}
+                                    setOpenCards={setOpenOutputCards}
+                                />
+                            } />
+                            <Route path='evaluation' element={
+                                <FuzzyEvaluation
+                                    problemId={prevProblem?.id ?? 0}
+                                    inputParameters={inputParameters}
+                                />
+                            } />
+                        </Routes>
                     </div>
                 </div>
                 <RightMenu>
