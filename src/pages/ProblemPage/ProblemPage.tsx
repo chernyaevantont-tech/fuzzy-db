@@ -7,6 +7,8 @@ import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import InputParameterList from '../../modules/InputParameterList/InputParameterList';
 import OutputParameterList from '../../modules/OutputParameterList/OutputParameterList';
 import RulesTable from '../../modules/RulesTable/RulesTable';
+import DetailedFuzzyInference from '../../modules/DetailedFuzzyInference/DetailedFuzzyInference';
+import UserOutput from '../../modules/UserOutput/UserOutput';
 import { IoMdAddCircleOutline } from 'react-icons/io';
 import { useCallback, useEffect, useState } from 'react';
 import { InputParameterResponse } from '../../types/input_parameter';
@@ -113,7 +115,13 @@ const ProblemPage = () => {
                                     outputParameters={outputParameters}
                                 />
                             } />
-                            <Route path="user-output" element={<div>Пользовательский вывод</div>} />
+                            <Route path="user-output" element={
+                                <UserOutput
+                                    problemId={prevProblem?.id ?? 0}
+                                    inputParameters={inputParameters}
+                                    outputParameters={outputParameters}
+                                />
+                            } />
                             <Route path='input-parameters' element={
                                 <InputParameterList
                                     key={`input-${dataVersion}`}
@@ -135,9 +143,10 @@ const ProblemPage = () => {
                                 />
                             } />
                             <Route path='evaluation' element={
-                                <FuzzyEvaluation
+                                <DetailedFuzzyInference
                                     problemId={prevProblem?.id ?? 0}
                                     inputParameters={inputParameters}
+                                    outputParameters={outputParameters}
                                 />
                             } />
                         </Routes>
