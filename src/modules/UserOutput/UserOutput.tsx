@@ -91,36 +91,19 @@ const UserOutput: React.FC<UserOutputProps> = ({
         rules.forEach((rule) => {
             if (!rule.fuzzy_output_value_id) return;
             
-            // Парсим input_value_ids с учетом формата |id1||id2||id3|
+            // Parse input_value_ids - format is |1||2||3|
             const inputTermIds = rule.input_value_ids
                 .split('|')
-                .filter(s => s.length > 0)
+                .filter(s => s.trim() !== '')
                 .map(Number);
-            
             if (inputTermIds.length !== inputParameters.length) return;
 
             let minMu = 1;
-            
-            // Для каждого параметра находим соответствующий терм из правила
-            for (const param of inputParameters) {
-                // Находим ID терма из правила, который принадлежит этому параметру
-                let foundTermId: number | null = null;
-                for (const termId of inputTermIds) {
-                    if (param.input_values.some(iv => iv.id === termId)) {
-                        foundTermId = termId;
-                        break;
-                    }
-                }
-                
-                if (foundTermId === null) {
-                    // Не нашли терм для этого параметра - правило не применимо
-                    minMu = 0;
-                    break;
-                }
-                
-                const mu = fuzzificationResults[param.id][foundTermId] || 0;
+            inputTermIds.forEach((inputValueId, index) => {
+                const param = inputParameters[index];
+                const mu = fuzzificationResults[param.id][inputValueId] || 0;
                 minMu = Math.min(minMu, mu);
-            }
+            });
 
             if (minMu > 0) {
                 for (const outParam of outputParameters) {

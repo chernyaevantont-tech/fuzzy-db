@@ -74,16 +74,6 @@ const DetailedFuzzyInference: React.FC<DetailedFuzzyInferenceProps> = ({
             return null;
         }
 
-        console.log('=== Starting Inference ===');
-        console.log('Input parameters:', inputParameters.map(p => ({ 
-            id: p.id, 
-            name: p.name,
-            input_values: p.input_values.map(iv => ({ id: iv.id, value: iv.value, a: iv.a, b: iv.b, c: iv.c, d: iv.d }))
-        })));
-        console.log('Output parameters:', outputParameters.map(p => ({ id: p.id, name: p.name })));
-        console.log('Rules count:', rules.length);
-        console.log('Rules:', rules.map(r => ({ input_value_ids: r.input_value_ids, fuzzy_output_value_id: r.fuzzy_output_value_id })));
-
         // Шаг 1: Фаззификация входов
         const fuzzificationResults: Record<number, Record<number, number>> = {};
         inputParameters.forEach((param) => {
@@ -92,15 +82,6 @@ const DetailedFuzzyInference: React.FC<DetailedFuzzyInferenceProps> = ({
             param.input_values.forEach((iv) => {
                 const mu = trapezoidalMembership(crispValue, iv.a, iv.b, iv.c, iv.d);
                 fuzzificationResults[param.id][iv.id] = mu;
-            });
-        });
-
-        console.log('Fuzzification results:');
-        inputParameters.forEach(param => {
-            console.log(`  ${param.name} (id=${param.id}, value=${inputValues[param.id]}):`);
-            param.input_values.forEach(iv => {
-                const mu = fuzzificationResults[param.id][iv.id];
-                console.log(`    ${iv.value} (id=${iv.id}): μ=${mu.toFixed(3)}, trapezoid=[${iv.a}, ${iv.b}, ${iv.c}, ${iv.d}]`);
             });
         });
 
@@ -125,54 +106,25 @@ const DetailedFuzzyInference: React.FC<DetailedFuzzyInferenceProps> = ({
         rules.forEach((rule) => {
             if (!rule.fuzzy_output_value_id) return;
             
-            console.log('Processing rule:', rule.input_value_ids, '→', rule.fuzzy_output_value_id);
-            
-            // Парсим input_value_ids с учетом формата |id1||id2||id3|
+            // Parse input_value_ids - format is |1||2||3|
             const inputTermIds = rule.input_value_ids
                 .split('|')
-                .filter(s => s.length > 0)
+                .filter(s => s.trim() !== '')
                 .map(Number);
-            
-            console.log('Parsed term IDs:', inputTermIds);
-            
-            if (inputTermIds.length !== inputParameters.length) {
-                console.log('Skipping rule: wrong number of terms');
-                return;
-            }
+            if (inputTermIds.length !== inputParameters.length) return;
 
             // Вычисляем минимальную степень принадлежности (AND операция)
             let minMu = 1;
             const inputCombinationParts: string[] = [];
-            
-            // Для каждого параметра находим соответствующий терм из правила
-            for (const param of inputParameters) {
-                // Находим ID терма из правила, который принадлежит этому параметру
-                let foundTermId: number | null = null;
-                for (const termId of inputTermIds) {
-                    if (param.input_values.some(iv => iv.id === termId)) {
-                        foundTermId = termId;
-                        break;
-                    }
-                }
-                
-                console.log(`Param ${param.name} (id=${param.id}): found term ID=${foundTermId}`);
-                
-                if (foundTermId === null) {
-                    // Не нашли терм для этого параметра - правило не применимо
-                    minMu = 0;
-                    console.log('No term found for this parameter - skipping rule');
-                    break;
-                }
-                
-                const mu = fuzzificationResults[param.id][foundTermId] || 0;
+            inputTermIds.forEach((inputValueId, index) => {
+                const param = inputParameters[index];
+                const mu = fuzzificationResults[param.id][inputValueId] || 0;
                 minMu = Math.min(minMu, mu);
-                const term = param.input_values.find(iv => iv.id === foundTermId);
+                const term = param.input_values.find(iv => iv.id === inputValueId);
                 if (term) {
                     inputCombinationParts.push(`${param.name}=${term.value}(${mu.toFixed(3)})`);
                 }
-            }
-            
-            console.log('Rule strength (minMu):', minMu);
+            });
 
             if (minMu > 0) {
                 // Находим выходной параметр и терм

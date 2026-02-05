@@ -78,6 +78,8 @@ const Table: React.FC<TableProps> = ({ rows, onCellChange, className }) => {
             startWidth: startWidth
         };
         
+        console.log('MouseDown: Starting resize for column', colIdx);
+        
         const handleMouseMove = (e: MouseEvent) => {
             const { column, startX, startWidth } = resizeStateRef.current;
             if (column === null) return;
@@ -85,6 +87,7 @@ const Table: React.FC<TableProps> = ({ rows, onCellChange, className }) => {
             // КРИТИЧЕСКИ ВАЖНО: проверяем, нажата ли кнопка мыши
             // Если buttons === 0, значит кнопка отпущена, но событие mouseup не дошло
             if (e.buttons === 0) {
+                console.log('MouseMove detected button release (buttons=0)');
                 cleanup();
                 return;
             }
@@ -93,6 +96,9 @@ const Table: React.FC<TableProps> = ({ rows, onCellChange, className }) => {
             const windowWidth = window.innerWidth;
             const windowHeight = window.innerHeight;
             if (e.clientX < 0 || e.clientX > windowWidth || e.clientY < 0 || e.clientY > windowHeight) {
+                console.log('Mouse left window bounds');
+                // Сразу сбрасываем курсор перед cleanup
+                document.body.style.cursor = '';
                 cleanup();
                 return;
             }
@@ -122,11 +128,13 @@ const Table: React.FC<TableProps> = ({ rows, onCellChange, className }) => {
         };
 
         const handleMouseUp = (e: MouseEvent) => {
+            console.log('Mouse up detected!');
             cleanup();
         };
 
         const handleEscape = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
+                console.log('Escape pressed');
                 cleanup();
             }
         };
@@ -138,7 +146,8 @@ const Table: React.FC<TableProps> = ({ rows, onCellChange, className }) => {
         
         document.body.style.cursor = 'col-resize';
         document.body.style.userSelect = 'none';
-
+        
+        console.log('Mouse handlers added');
         
         setResizingColumn(colIdx);
     }, [columnWidths]);

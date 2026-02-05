@@ -26,7 +26,7 @@ impl SqliteProblemRepository {
         input_parameter: &mut InputParameter,
         conn: &Connection,
     ) -> Result<(), DomainError> {
-        let mut stmt = conn.prepare("SELECT id, input_parameter_id, value, a, b, c, d, is_triangle FROM input_value WHERE input_parameter_id = ?").map_err(|e|  DomainError::Internal(e.to_string()))?;
+        let mut stmt = conn.prepare("SELECT id, input_parameter_id, value, a, b, c, d, is_triangle FROM input_value WHERE input_parameter_id = ? ORDER BY a ASC").map_err(|e|  DomainError::Internal(e.to_string()))?;
         let result = stmt
             .query_map(params![input_parameter.id], |row| {
                 Ok(InputValue {
@@ -57,7 +57,7 @@ impl SqliteProblemRepository {
         output_parameter: &mut OutputParameter,
         conn: &Connection,
     ) -> Result<(), DomainError> {
-        let mut stmt = conn.prepare("SELECT id, output_parameter_id, value, a, b, c, d, is_triangle FROM fuzzy_output_value WHERE output_parameter_id = ?").map_err(|e|  DomainError::Internal(e.to_string()))?;
+        let mut stmt = conn.prepare("SELECT id, output_parameter_id, value, a, b, c, d, is_triangle FROM fuzzy_output_value WHERE output_parameter_id = ? ORDER BY a ASC").map_err(|e|  DomainError::Internal(e.to_string()))?;
         let result = stmt
             .query_map(params![output_parameter.id], |row| {
                 Ok(FuzzyOutputValue {

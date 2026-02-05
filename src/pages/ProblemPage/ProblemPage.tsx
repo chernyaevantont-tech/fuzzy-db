@@ -18,32 +18,56 @@ import { createOutputParameter } from '../../api/output_parameter/createOutputPa
 import { useProblemPathContext } from '../../storage/ProblemPath';
 import { getFullProblemById } from '../../api/problem/getFullProblemById';
 import { ProblemFullResponse } from '../../types/problem';
-import FuzzyEvaluation from '../../modules/FuzzyEvaluation/FuzzyEvaluation';
 
 const ProblemPage = () => {
     const [inputParameters, setInputParameters] = useState<InputParameterResponse[]>([]);
     const [outputParameters, setOutputParameters] = useState<OutputParameterResponse[]>([]);
-    const [dataVersion, setDataVersion] = useState(0);
-
-    // Состояние открытости карточек параметров (по ID параметра)
-    const [openInputCards, setOpenInputCards] = useState<Record<number, boolean>>({});
-    const [openOutputCards, setOpenOutputCards] = useState<Record<number, boolean>>({});
-
-    const location = useLocation();
 
     const { prevProblem } = useProblemPathContext();
+
+    // Состояние открытости карточек параметров (по ID параметра) с сохранением в localStorage
+    const [openInputCards, setOpenInputCards] = useState<Record<number, boolean>>(() => {
+        try {
+            const saved = localStorage.getItem(`openInputCards_${prevProblem?.id}`);
+            return saved ? JSON.parse(saved) : {};
+        } catch {
+            return {};
+        }
+    });
+    const [openOutputCards, setOpenOutputCards] = useState<Record<number, boolean>>(() => {
+        try {
+            const saved = localStorage.getItem(`openOutputCards_${prevProblem?.id}`);
+            return saved ? JSON.parse(saved) : {};
+        } catch {
+            return {};
+        }
+    });
+
+    const location = useLocation();
 
     const fetchData = useCallback(() => {
         getFullProblemById(prevProblem?.id ?? 0, (resp: ProblemFullResponse) => {
             setInputParameters(resp.input_parameters);
             setOutputParameters(resp.output_parameters);
-            setDataVersion(v => v + 1);
         });
     }, [prevProblem?.id]);
 
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+    // Сохраняем состояние открытых карточек в localStorage
+    useEffect(() => {
+        if (prevProblem?.id) {
+            localStorage.setItem(`openInputCards_${prevProblem.id}`, JSON.stringify(openInputCards));
+        }
+    }, [openInputCards, prevProblem?.id]);
+
+    useEffect(() => {
+        if (prevProblem?.id) {
+            localStorage.setItem(`openOutputCards_${prevProblem.id}`, JSON.stringify(openOutputCards));
+        }
+    }, [openOutputCards, prevProblem?.id]);
 
     const renderMenu = () => {
         switch (location.pathname) {
@@ -124,7 +148,6 @@ const ProblemPage = () => {
                             } />
                             <Route path='input-parameters' element={
                                 <InputParameterList
-                                    key={`input-${dataVersion}`}
                                     inputParameters={inputParameters}
                                     setInputParameters={setInputParameters}
                                     refetchData={fetchData}
@@ -134,7 +157,6 @@ const ProblemPage = () => {
                             } />
                             <Route path='output-parameters' element={
                                 <OutputParameterList
-                                    key={`output-${dataVersion}`}
                                     outputParameters={outputParameters}
                                     setOutputParameters={setOutputParameters}
                                     refetchData={fetchData}

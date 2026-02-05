@@ -1,8 +1,6 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { InputValueResponse } from '../../../../types/input_value';
-import TextInput from '../../../../ui/inputs/TextInput/TextInput';
 import classes from './InputValueUnit.module.css';
-import { FaAngleUp, FaAngleDown } from 'react-icons/fa6';
 
 // Color palette - should match FuzzyGraph
 const COLORS = [
@@ -26,10 +24,8 @@ interface InputValueUnitProps {
     isLast: boolean;
     onValueChange: (updated: InputValueResponse, editedParam?: 'a' | 'b' | 'c' | 'd') => void;
     onDelete: () => void;
-    onSwitchUp?: () => void;
-    onSwitchDown?: () => void;
-    canSwitchUp?: boolean;
-    canSwitchDown?: boolean;
+    onMoveUp?: () => void;
+    onMoveDown?: () => void;
 }
 
 const InputValueUnit: React.FC<InputValueUnitProps> = ({
@@ -41,34 +37,60 @@ const InputValueUnit: React.FC<InputValueUnitProps> = ({
     isLast,
     onValueChange,
     onDelete,
-    onSwitchUp,
-    onSwitchDown,
-    canSwitchUp = false,
-    canSwitchDown = false,
+    onMoveUp,
+    onMoveDown,
 }) => {
     const color = COLORS[index % COLORS.length];
+    
+    // Локальный стейт для названия терма
+    const [localValue, setLocalValue] = useState(inputValue.value);
+    
+    // Локальный стейт для чисел
+    const [localA, setLocalA] = useState(inputValue.a.toFixed(2));
+    const [localB, setLocalB] = useState(inputValue.b.toFixed(2));
+    const [localC, setLocalC] = useState(inputValue.c.toFixed(2));
+    const [localD, setLocalD] = useState(inputValue.d.toFixed(2));
+    
+    // Синхронизация с props
+    useEffect(() => {
+        setLocalValue(inputValue.value);
+        setLocalA(inputValue.a.toFixed(2));
+        setLocalB(inputValue.b.toFixed(2));
+        setLocalC(inputValue.c.toFixed(2));
+        setLocalD(inputValue.d.toFixed(2));
+    }, [inputValue]);
 
-    const handleTextChange = useCallback((value: string) => {
-        onValueChange({ ...inputValue, value });
-    }, [inputValue, onValueChange]);
+    const handleTextBlur = useCallback(() => {
+        if (localValue !== inputValue.value) {
+            onValueChange({ ...inputValue, value: localValue });
+        }
+    }, [localValue, inputValue, onValueChange]);
+    
+    const handleTextKeyDown = useCallback((e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            (e.target as HTMLInputElement).blur();
+        }
+    }, []);
 
-    /**
-     * Handle number input change with Ruspini partition constraints:
-     * - a < b <= c < d (always enforced within this term)
-     * - Changes propagate to adjacent terms via parent
-     * 
-     * Editable fields:
-     * - First term: b, c, d (a is fixed to start - epsilon)
-     * - Middle terms: b, c (a and d are synced with neighbors)
-     * - Last term: a, b, c (d is fixed to end + epsilon)
-     * 
-     * Key insight: Only allow editing of "independent" points:
-     * - b and c are independent (plateau boundaries)
-     * - a and d are dependent (overlap boundaries, synced with neighbors)
-     */
     const handleNumberChange = useCallback((param: 'a' | 'b' | 'c' | 'd', valueStr: string) => {
+        // Обновляем локальный стейт
+        if (param === 'a') setLocalA(valueStr);
+        else if (param === 'b') setLocalB(valueStr);
+        else if (param === 'c') setLocalC(valueStr);
+        else if (param === 'd') setLocalD(valueStr);
+    }, []);
+    
+    const handleNumberBlur = useCallback((param: 'a' | 'b' | 'c' | 'd') => {
+        const valueStr = param === 'a' ? localA : param === 'b' ? localB : param === 'c' ? localC : localD;
         const value = parseFloat(valueStr);
-        if (isNaN(value)) return;
+        if (isNaN(value)) {
+            // Восстанавливаем предыдущее значение
+            if (param === 'a') setLocalA(inputValue.a.toFixed(2));
+            else if (param === 'b') setLocalB(inputValue.b.toFixed(2));
+            else if (param === 'c') setLocalC(inputValue.c.toFixed(2));
+            else if (param === 'd') setLocalD(inputValue.d.toFixed(2));
+            return;
+        }
         
         const epsilon = (parameterEnd - parameterStart) * 0.001;
         
@@ -184,25 +206,24 @@ const InputValueUnit: React.FC<InputValueUnitProps> = ({
                     className={classes.ColorIndicator}
                     style={{ backgroundColor: color }}
                 />
-                <TextInput
-                    value={inputValue.value}
-                    setValue={handleTextChange}
-                    className={classes.Value}
+                <input
+                    type="text"
+                    value={localValue}
+                    onChange={(e) => setLocalValue(e.target.value)}
+                    onBlur={handleTextBlur}
+                    onKeyDown={handleTextKeyDown}
+                    className={classes.ValueInput}
                 />
                 <div className={classes.Actions}>
-                    {onSwitchUp && (
-                        <div className={classes.SwitchButtons}>
-                            {canSwitchUp ? (
-                                <FaAngleUp className={classes.SwitchIcon} onClick={onSwitchUp} title="Переместить вверх" />
-                            ) : (
-                                <div className={classes.SwitchIcon} />
-                            )}
-                            {canSwitchDown ? (
-                                <FaAngleDown className={classes.SwitchIcon} onClick={onSwitchDown} title="Переместить вниз" />
-                            ) : (
-                                <div className={classes.SwitchIcon} />
-                            )}
-                        </div>
+                    {onMoveUp && (
+                        <button className={classes.MoveButton} onClick={onMoveUp} title="Переместить вверх">
+                            ▲
+                        </button>
+                    )}
+                    {onMoveDown && (
+                        <button className={classes.MoveButton} onClick={onMoveDown} title="Переместить вниз">
+                            ▼
+                        </button>
                     )}
                     <button className={classes.DeleteButton} onClick={onDelete} title="Удалить">
                         ✕
@@ -215,8 +236,9 @@ const InputValueUnit: React.FC<InputValueUnitProps> = ({
                     <input
                         type="number"
                         step="0.01"
-                        value={inputValue.a.toFixed(2)}
+                        value={localA}
                         onChange={(e) => handleNumberChange('a', e.target.value)}
+                        onBlur={() => handleNumberBlur('a')}
                         className={classes.NumberInput}
                         disabled={aDisabled}
                         title={isFirst ? "Фиксировано (начало диапазона)" : "Левая граница (= prev.c)"}
@@ -227,8 +249,9 @@ const InputValueUnit: React.FC<InputValueUnitProps> = ({
                     <input
                         type="number"
                         step="0.01"
-                        value={inputValue.b.toFixed(2)}
+                        value={localB}
                         onChange={(e) => handleNumberChange('b', e.target.value)}
+                        onBlur={() => handleNumberBlur('b')}
                         className={classes.NumberInput}
                         disabled={bDisabled}
                         title={isFirst ? "Фиксировано (начало диапазона)" : "Начало плато (a < b, редактируемо)"}
@@ -239,8 +262,9 @@ const InputValueUnit: React.FC<InputValueUnitProps> = ({
                     <input
                         type="number"
                         step="0.01"
-                        value={inputValue.c.toFixed(2)}
+                        value={localC}
                         onChange={(e) => handleNumberChange('c', e.target.value)}
+                        onBlur={() => handleNumberBlur('c')}
                         className={classes.NumberInput}
                         disabled={cDisabled}
                         title={isLast ? "Фиксировано (конец диапазона)" : "Конец плато (b ≤ c, редактируемо)"}
@@ -251,8 +275,9 @@ const InputValueUnit: React.FC<InputValueUnitProps> = ({
                     <input
                         type="number"
                         step="0.01"
-                        value={inputValue.d.toFixed(2)}
+                        value={localD}
                         onChange={(e) => handleNumberChange('d', e.target.value)}
+                        onBlur={() => handleNumberBlur('d')}
                         className={classes.NumberInput}
                         disabled={dDisabled}
                         title={isLast ? "Фиксировано (конец диапазона)" : "Правая граница (c < d, = next.b)"}

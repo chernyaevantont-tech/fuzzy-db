@@ -471,11 +471,11 @@ impl FuzzyOutputValueRepository for SqliteFuzzyOutputValueRepository {
 
         let value_1 = {
             let mut stmt = tx
-                .prepare("SELECT value, a, b, c, d FROM fuzzy_output_value WHERE id = ?")
+                .prepare("SELECT a, b, c, d FROM fuzzy_output_value WHERE id = ?")
                 .map_err(|e| DomainError::Internal(e.to_string()))?;
-            let result: (String, f32, f32, f32, f32) = stmt
+            let result: (f32, f32, f32, f32) = stmt
                 .query_row(params![&id_1], |row| {
-                    Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
+                    Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
                 })
                 .map_err(|e| DomainError::Internal(e.to_string()))?;
 
@@ -484,41 +484,31 @@ impl FuzzyOutputValueRepository for SqliteFuzzyOutputValueRepository {
 
         let value_2 = {
             let mut stmt = tx
-                .prepare("SELECT value, a, b, c, d FROM fuzzy_output_value WHERE id = ?")
+                .prepare("SELECT a, b, c, d FROM fuzzy_output_value WHERE id = ?")
                 .map_err(|e| DomainError::Internal(e.to_string()))?;
-            let result: (String, f32, f32, f32, f32) = stmt
+            let result: (f32, f32, f32, f32) = stmt
                 .query_row(params![&id_2], |row| {
-                    Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
+                    Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
                 })
                 .map_err(|e| DomainError::Internal(e.to_string()))?;
 
             result
         };
 
-        // Swap value names and trapezoid parameters (a, b, c, d)
+        // Swap only trapezoid parameters (a, b, c, d), keep value names and IDs unchanged
         tx.execute(
-            "UPDATE fuzzy_output_value SET value = ?, a = ?, b = ?, c = ?, d = ? WHERE id = ?",
-            params![value_2.0, value_2.1, value_2.2, value_2.3, value_2.4, id_1],
+            "UPDATE fuzzy_output_value SET a = ?, b = ?, c = ?, d = ? WHERE id = ?",
+            params![value_2.0, value_2.1, value_2.2, value_2.3, id_1],
         )
         .map_err(|e| DomainError::Internal(e.to_string()))?;
 
         tx.execute(
-            "UPDATE fuzzy_output_value SET value = ?, a = ?, b = ?, c = ?, d = ? WHERE id = ?",
-            params![value_1.0, value_1.1, value_1.2, value_1.3, value_1.4, id_2],
+            "UPDATE fuzzy_output_value SET a = ?, b = ?, c = ?, d = ? WHERE id = ?",
+            params![value_1.0, value_1.1, value_1.2, value_1.3, id_2],
         )
         .map_err(|e| DomainError::Internal(e.to_string()))?;
 
-        tx.execute(
-            "UPDATE output_value SET fuzzy_output_value_id = 
-            CASE 
-                WHEN fuzzy_output_value_id = ? THEN ? 
-                WHEN fuzzy_output_value_id = ? THEN ? 
-                ELSE fuzzy_output_value_id 
-            END 
-        WHERE fuzzy_output_value_id IN (?, ?)",
-            params![id_1, id_2, id_2, id_1, id_1, id_2],
-        )
-        .map_err(|e| DomainError::Internal(e.to_string()))?;
+        // No need to update output_value table - IDs remain the same
 
         tx.commit()
             .map_err(|e| DomainError::Internal(e.to_string()))?;

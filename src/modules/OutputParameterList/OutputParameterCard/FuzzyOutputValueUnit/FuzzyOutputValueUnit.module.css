@@ -21,6 +21,22 @@
     flex-shrink: 0;
 }
 
+.ValueInput {
+    flex-grow: 1;
+    padding: 4px 8px;
+    font-size: 14px;
+    border: 1px solid var(--border-color, #ccc);
+    border-radius: 4px;
+    background-color: var(--input-bg, #fff);
+    color: var(--text-primary, #333);
+    min-width: 0;
+}
+
+.ValueInput:focus {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
 .Value {
     flex-grow: 1;
     white-space: nowrap;
@@ -38,16 +54,37 @@
     align-items: center;
 }
 
-.SwitchButtons {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    align-items: center;
+.MoveButton {
+    background: transparent;
+    border: 1px solid var(--border-color, #ccc);
+    border-radius: 3px;
+    padding: 2px 6px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-secondary, #666);
+    transition: all 0.2s;
 }
 
-.SwitchIcon {
+.MoveButton:hover {
+    background: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+}
+
+.DeleteButton {
+    background: transparent;
+    border: 1px solid var(--danger-color, #e74c3c);
+    border-radius: 3px;
+    padding: 2px 6px;
     cursor: pointer;
-    color: var(--border-color);
+    font-size: 12px;
+    color: var(--danger-color, #e74c3c);
+    transition: all 0.2s;
+}
+
+.DeleteButton:hover {
+    background: var(--danger-color, #e74c3c);
+    color: white;
     font-size: 1em;
 }
 
