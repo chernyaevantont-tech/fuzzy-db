@@ -1,6 +1,7 @@
 import { OutputParameterResponse } from '../../types/output_parameter';
 import classes from './OutputParameter.module.css';
 import OutputParameterCard from './OutputParameterCard/OutputParameterCard';
+import { switchOutputParameters } from '../../api/output_parameter/switchOutputParameters';
 
 interface OutputParameterListProps {
     outputParameters: Array<OutputParameterResponse>,
@@ -17,6 +18,19 @@ const OutputParameterList: React.FC<OutputParameterListProps> = ({
     openCards,
     setOpenCards,
 }) => {
+    // Обработчики для перемещения параметров
+    const handleSwitchUp = (id1: number, id2: number) => {
+        switchOutputParameters(id1, id2, () => {
+            refetchData();
+        });
+    };
+
+    const handleSwitchDown = (id1: number, id2: number) => {
+        switchOutputParameters(id1, id2, () => {
+            refetchData();
+        });
+    };
+
     return (
         <div className={classes.OutputParameterList}>
             {
@@ -34,9 +48,12 @@ const OutputParameterList: React.FC<OutputParameterListProps> = ({
                             setOutputParameters(newOutputParameters.filter(x => x.id != id));
                         }}
                         refetchData={refetchData}
-                        allParameters={outputParameters}
                         isOpen={openCards[outputParameter.id] ?? false}
                         setIsOpen={(open) => setOpenCards({ ...openCards, [outputParameter.id]: open })}
+                        switchUpCallback={index > 0 ? () => handleSwitchUp(outputParameter.id, outputParameters[index - 1].id) : undefined}
+                        switchDownCallback={index < outputParameters.length - 1 ? () => handleSwitchDown(outputParameter.id, outputParameters[index + 1].id) : undefined}
+                        canSwitchUp={index > 0}
+                        canSwitchDown={index < outputParameters.length - 1}
                         key={outputParameter.id}
                     />
                 )

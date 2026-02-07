@@ -1,5 +1,6 @@
-import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { InputValueResponse } from '../../../../types/input_value';
+import { updateInputValueById } from '../../../../api/input_value/updateInputValueById';
 import classes from './InputValueUnit.module.css';
 
 // Color palette - should match FuzzyGraph
@@ -8,13 +9,6 @@ const COLORS = [
     '#1abc9c', '#e91e63', '#00bcd4', '#ff5722', '#8bc34a',
 ];
 
-/**
- * Validate constraint: a < b <= c < d for overlapping Ruspini partition
- */
-function validateTermConstraints(a: number, b: number, c: number, d: number): boolean {
-    return a < b && b <= c && c < d;
-}
-
 interface InputValueUnitProps {
     inputValue: InputValueResponse;
     index: number;
@@ -22,7 +16,7 @@ interface InputValueUnitProps {
     parameterEnd: number;
     isFirst: boolean;
     isLast: boolean;
-    onValueChange: (updated: InputValueResponse, editedParam?: 'a' | 'b' | 'c' | 'd') => void;
+    onValueChange: (updated: InputValueResponse) => void;
     onDelete: () => void;
     onMoveUp?: () => void;
     onMoveDown?: () => void;
@@ -42,27 +36,61 @@ const InputValueUnit: React.FC<InputValueUnitProps> = ({
 }) => {
     const color = COLORS[index % COLORS.length];
     
-    // Локальный стейт для названия терма
+    // Локальный стейт для названия терма (строка)
     const [localValue, setLocalValue] = useState(inputValue.value);
     
-    // Локальный стейт для чисел
+    // Локальный стейт для чисел (строки для свободного ввода)
     const [localA, setLocalA] = useState(inputValue.a.toFixed(2));
     const [localB, setLocalB] = useState(inputValue.b.toFixed(2));
     const [localC, setLocalC] = useState(inputValue.c.toFixed(2));
     const [localD, setLocalD] = useState(inputValue.d.toFixed(2));
     
+    // Отслеживаем ID для синхронизации при переключении термов
+    const [prevId, setPrevId] = useState(inputValue.id);
+    
     // Синхронизация с props
     useEffect(() => {
-        setLocalValue(inputValue.value);
-        setLocalA(inputValue.a.toFixed(2));
-        setLocalB(inputValue.b.toFixed(2));
-        setLocalC(inputValue.c.toFixed(2));
-        setLocalD(inputValue.d.toFixed(2));
-    }, [inputValue]);
+        if (inputValue.id !== prevId) {
+            // Сменился терм - полная синхронизация
+            setLocalValue(inputValue.value);
+            setLocalA(inputValue.a.toFixed(2));
+            setLocalB(inputValue.b.toFixed(2));
+            setLocalC(inputValue.c.toFixed(2));
+            setLocalD(inputValue.d.toFixed(2));
+            setPrevId(inputValue.id);
+        } else {
+            // Тот же терм - синхронизируем только числа (для соседних термов)
+            // НЕ трогаем localValue, чтобы не сбросить то что пользователь вводит
+            setLocalA(inputValue.a.toFixed(2));
+            setLocalB(inputValue.b.toFixed(2));
+            setLocalC(inputValue.c.toFixed(2));
+            setLocalD(inputValue.d.toFixed(2));
+        }
+    }, [inputValue, prevId]);
 
+    // === ТЕКСТ (название терма) ===
+    
+    const handleTextChange = useCallback((newValue: string) => {
+        setLocalValue(newValue);
+        // НЕ сохраняем при вводе, только обновляем локальный стейт
+    }, []);
+    
     const handleTextBlur = useCallback(() => {
+        // Сохраняем только если значение изменилось
         if (localValue !== inputValue.value) {
-            onValueChange({ ...inputValue, value: localValue });
+            const updatedValue = { ...inputValue, value: localValue };
+            
+            updateInputValueById(inputValue.id, {
+                value: localValue,
+                a: inputValue.a,
+                b: inputValue.b,
+                c: inputValue.c,
+                d: inputValue.d,
+                is_triangle: inputValue.is_triangle,
+            }, () => {
+                // Обновляем родительский state после успешного сохранения
+                onValueChange(updatedValue);
+            });
         }
     }, [localValue, inputValue, onValueChange]);
     
@@ -72,8 +100,10 @@ const InputValueUnit: React.FC<InputValueUnitProps> = ({
         }
     }, []);
 
+    // === ЧИСЛА (a, b, c, d) ===
+    
     const handleNumberChange = useCallback((param: 'a' | 'b' | 'c' | 'd', valueStr: string) => {
-        // Обновляем локальный стейт
+        // Только обновляем локальный стейт для свободного ввода
         if (param === 'a') setLocalA(valueStr);
         else if (param === 'b') setLocalB(valueStr);
         else if (param === 'c') setLocalC(valueStr);
@@ -82,9 +112,11 @@ const InputValueUnit: React.FC<InputValueUnitProps> = ({
     
     const handleNumberBlur = useCallback((param: 'a' | 'b' | 'c' | 'd') => {
         const valueStr = param === 'a' ? localA : param === 'b' ? localB : param === 'c' ? localC : localD;
+        
+        // Валидация - парсим число
         const value = parseFloat(valueStr);
         if (isNaN(value)) {
-            // Восстанавливаем предыдущее значение
+            // Невалидное число - восстанавливаем из props
             if (param === 'a') setLocalA(inputValue.a.toFixed(2));
             else if (param === 'b') setLocalB(inputValue.b.toFixed(2));
             else if (param === 'c') setLocalC(inputValue.c.toFixed(2));
@@ -94,113 +126,79 @@ const InputValueUnit: React.FC<InputValueUnitProps> = ({
         
         const epsilon = (parameterEnd - parameterStart) * 0.001;
         
-        // Clamp strictly within parameter range (only epsilon margin for boundary terms)
-        // First term a can be slightly before start, last term d can be slightly after end
-        const minAllowed = isFirst ? parameterStart - epsilon : parameterStart;
-        const maxAllowed = isLast ? parameterEnd + epsilon : parameterEnd;
-        let clampedValue = Math.max(minAllowed, Math.min(maxAllowed, value));
+        // Ограничиваем диапазоном параметра
+        const clampedValue = Math.max(parameterStart, Math.min(parameterEnd, value));
         
+        // Создаем обновленный объект
         let newValue = { ...inputValue };
-        
         newValue[param] = clampedValue;
 
-        // Enforce constraint within this term: a < b <= c < d
-        // Adjust other values to maintain validity, respecting neighbor sync points
-        if (param === 'b') {
-            // b changed: ensure a < b <= c < d
-            // a is synced from prev term (if not first), so adjust it locally only
-            if (newValue.b <= newValue.a) {
-                if (isFirst) {
-                    // First term: a is fixed
-                    newValue.b = newValue.a + epsilon;
-                    clampedValue = newValue.b;
-                } else {
-                    // Will be synced from neighbor
-                    newValue.a = newValue.b - epsilon;
-                }
-            }
-            // Ensure b <= c
-            if (newValue.b > newValue.c) {
-                newValue.c = newValue.b;
-            }
-            // Ensure c < d
-            if (newValue.c >= newValue.d) {
-                if (isLast) {
-                    // Last term: d is fixed
-                    newValue.c = newValue.d - epsilon;
-                } else {
-                    newValue.d = newValue.c + epsilon;
-                }
-            }
-        } else if (param === 'c') {
-            // c changed: ensure b <= c < d
+        // Применяем ограничения Ruspini partition
+        if (isFirst) {
+            // Первый терм: a и b фиксированы на start
+            newValue.a = parameterStart;
+            newValue.b = parameterStart;
             if (newValue.c < newValue.b) {
-                newValue.b = newValue.c;
-                // Cascade: ensure a < b
-                if (newValue.b <= newValue.a) {
-                    if (isFirst) {
-                        newValue.b = newValue.a + epsilon;
-                        newValue.c = newValue.b;
-                        clampedValue = newValue.c;
-                    } else {
-                        newValue.a = newValue.b - epsilon;
-                    }
-                }
-            }
-            // Ensure c < d
-            if (newValue.c >= newValue.d) {
-                if (isLast) {
-                    // Last term: d is fixed
-                    newValue.c = newValue.d - epsilon;
-                    clampedValue = newValue.c;
-                } else {
-                    newValue.d = newValue.c + epsilon;
-                }
-            }
-        } else if (param === 'a') {
-            // Only for first term or when syncing
-            if (newValue.a >= newValue.b) {
-                newValue.b = newValue.a + epsilon;
-            }
-            if (newValue.b > newValue.c) {
                 newValue.c = newValue.b;
             }
-            if (newValue.c >= newValue.d) {
+            if (newValue.d <= newValue.c) {
                 newValue.d = newValue.c + epsilon;
             }
-        } else if (param === 'd') {
-            // Only for last term or when syncing
-            if (newValue.d <= newValue.c) {
-                newValue.c = newValue.d - epsilon;
-            }
-            if (newValue.c < newValue.b) {
+        } else if (isLast) {
+            // Последний терм: c и d фиксированы на end
+            newValue.c = parameterEnd;
+            newValue.d = parameterEnd;
+            if (newValue.b > newValue.c) {
                 newValue.b = newValue.c;
             }
-            if (newValue.b <= newValue.a) {
+            if (newValue.a >= newValue.b) {
                 newValue.a = newValue.b - epsilon;
+            }
+        } else {
+            // Средний терм: все редактируемы, но a < b <= c < d
+            if (param === 'a') {
+                if (newValue.a >= newValue.b) newValue.b = newValue.a + epsilon;
+                if (newValue.b > newValue.c) newValue.c = newValue.b;
+                if (newValue.c >= newValue.d) newValue.d = newValue.c + epsilon;
+            } else if (param === 'b') {
+                if (newValue.b <= newValue.a) newValue.a = newValue.b - epsilon;
+                if (newValue.b > newValue.c) newValue.c = newValue.b;
+                if (newValue.c >= newValue.d) newValue.d = newValue.c + epsilon;
+            } else if (param === 'c') {
+                if (newValue.c < newValue.b) newValue.b = newValue.c;
+                if (newValue.b <= newValue.a) newValue.a = newValue.b - epsilon;
+                if (newValue.c >= newValue.d) newValue.d = newValue.c + epsilon;
+            } else if (param === 'd') {
+                if (newValue.d <= newValue.c) newValue.c = newValue.d - epsilon;
+                if (newValue.c < newValue.b) newValue.b = newValue.c;
+                if (newValue.b <= newValue.a) newValue.a = newValue.b - epsilon;
             }
         }
 
-        // Send to parent with info about which param was edited
-        onValueChange(newValue, param);
-    }, [inputValue, parameterStart, parameterEnd, isFirst, isLast, onValueChange]);
+        // Синхронизация с соседними термами (через parent)
+        onValueChange(newValue);
+        
+        // Сохраняем в БД - используем ТЕКУЩЕЕ localValue (не из props!)
+        updateInputValueById(inputValue.id, {
+            value: localValue,  // <-- актуальное значение из локального стейта
+            a: newValue.a,
+            b: newValue.b,
+            c: newValue.c,
+            d: newValue.d,
+            is_triangle: inputValue.is_triangle,
+        }, () => {
+            // Успешно сохранено
+        });
+    }, [localA, localB, localC, localD, localValue, inputValue, parameterStart, parameterEnd, isFirst, isLast, onValueChange]);
 
-    // Overlapping Ruspini partition:
-    // First term: a and b are fixed (start of range), c and d editable
-    // Last term: a and b editable, c and d are fixed (end of range)
-    // Middle terms: all fields editable (a affects prev.c, d affects next.b)
-    const aDisabled = isFirst;  // Only first term: a is fixed to start - epsilon
-    const bDisabled = isFirst;  // Only first term: b is fixed to start
-    const cDisabled = isLast;   // Only last term: c is fixed to end
-    const dDisabled = isLast;   // Only last term: d is fixed to end + epsilon
-
-    // Validation state for visual feedback
-    const isValid = useMemo(() => {
-        return validateTermConstraints(inputValue.a, inputValue.b, inputValue.c, inputValue.d);
-    }, [inputValue.a, inputValue.b, inputValue.c, inputValue.d]);
+    // Disabled состояния для полей
+    const aDisabled = isFirst;
+    const bDisabled = isFirst;
+    const cDisabled = isLast;
+    const dDisabled = isLast;
 
     return (
-        <div className={`${classes.Container} ${!isValid ? classes.Invalid : ''}`}>
+        <div className={classes.Container}>
             <div className={classes.Top}>
                 <div
                     className={classes.ColorIndicator}
@@ -209,7 +207,7 @@ const InputValueUnit: React.FC<InputValueUnitProps> = ({
                 <input
                     type="text"
                     value={localValue}
-                    onChange={(e) => setLocalValue(e.target.value)}
+                    onChange={(e) => handleTextChange(e.target.value)}
                     onBlur={handleTextBlur}
                     onKeyDown={handleTextKeyDown}
                     className={classes.ValueInput}

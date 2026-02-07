@@ -207,42 +207,44 @@ impl InputParameterRepository for SqliteInputParameterRepository {
             .transaction()
             .map_err(|e| DomainError::Internal(e.to_string()))?;
 
-        let name_1 = {
+        let param_1 = {
             let mut stmt = tx
                 .prepare("SELECT name, start, end FROM input_parameter WHERE id = ?")
                 .map_err(|e| DomainError::Internal(e.to_string()))?;
 
-            let name: String = stmt
-                .query_row(params![id_1], |row| row.get(0))
+            let result: (String, f64, f64) = stmt
+                .query_row(params![id_1], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
                 .map_err(|e| DomainError::Internal(e.to_string()))?;
 
-            name
+            result
         };
 
-        let name_2 = {
+        let param_2 = {
             let mut stmt = tx
                 .prepare("SELECT name, start, end FROM input_parameter WHERE id = ?")
                 .map_err(|e| DomainError::Internal(e.to_string()))?;
 
-            let name: String = stmt
-                .query_row(params![id_2], |row| row.get(0))
+            let result: (String, f64, f64) = stmt
+                .query_row(params![id_2], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
                 .map_err(|e| DomainError::Internal(e.to_string()))?;
 
-            name
+            result
         };
 
+        // Swap all parameter data (name, start, end)
         tx.execute(
-            "UPDATE input_parameter SET name = ? WHERE id = ?",
-            params![name_2, id_1],
+            "UPDATE input_parameter SET name = ?, start = ?, end = ? WHERE id = ?",
+            params![param_2.0, param_2.1, param_2.2, id_1],
         )
         .map_err(|e| DomainError::Internal(e.to_string()))?;
 
         tx.execute(
-            "UPDATE input_parameter SET name = ? WHERE id = ?",
-            params![name_1, id_2],
+            "UPDATE input_parameter SET name = ?, start = ?, end = ? WHERE id = ?",
+            params![param_1.0, param_1.1, param_1.2, id_2],
         )
         .map_err(|e| DomainError::Internal(e.to_string()))?;
 
+        // Swap input_value associations between parameters
         tx.execute(
             "UPDATE input_value SET input_parameter_id = 
             CASE 

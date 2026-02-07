@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ParameterCard from '../../../components/ParameterCard/ParameterCard';
 import { OutputParameterResponse } from '../../../types/output_parameter';
 import AccentButton from '../../../ui/buttons/AccentButton/AccentButton';
-import SecondaryButton from '../../../ui/buttons/SecondaryButton/SecondaryButton';
 import { createFuzzyOutputValue } from '../../../api/fuzzy_output_value/createFuzzyOutputValue';
 import { updateOutputParameterById } from '../../../api/output_parameter/updateOutputParameterById';
 import { removeOutputParameterById } from '../../../api/output_parameter/removeOutputParameterById';
@@ -19,9 +18,12 @@ interface OutputParameterCardProps {
     setOutputParameter: (value: OutputParameterResponse) => void;
     deleteCallback: () => void;
     refetchData: () => void;
-    allParameters: OutputParameterResponse[];
     isOpen?: boolean;
     setIsOpen?: (open: boolean) => void;
+    switchUpCallback?: () => void;
+    switchDownCallback?: () => void;
+    canSwitchUp?: boolean;
+    canSwitchDown?: boolean;
 }
 
 const OutputParameterCard: React.FC<OutputParameterCardProps> = ({ 
@@ -29,25 +31,47 @@ const OutputParameterCard: React.FC<OutputParameterCardProps> = ({
     setOutputParameter, 
     deleteCallback,
     refetchData,
-    allParameters,
     isOpen,
     setIsOpen,
+    switchUpCallback,
+    switchDownCallback,
+    canSwitchUp = false,
+    canSwitchDown = false,
 }) => {
     // Local state for editing - will be synced with props
     const [localOutputValues, setLocalOutputValues] = useState<FuzzyOutputValueResponse[]>([]);
-    const [isDirty, setIsDirty] = useState(false);
-
-    // Sync local state with props
+    
+    // Ref to track if changes came from local editing (to sync back to parent)
+    const isLocalEdit = useRef(false);
+    
+    // Ref to store current outputParameter for use in effects
+    const outputParameterRef = useRef(outputParameter);
     useEffect(() => {
-        setLocalOutputValues([...outputParameter.fuzzy_output_values]);
-        setIsDirty(false);
-    }, [outputParameter.fuzzy_output_values]);
+        outputParameterRef.current = outputParameter;
+    }, [outputParameter]);
+
+    // Sync local state with props (from parent)
+    useEffect(() => {
+        if (!isLocalEdit.current) {
+            setLocalOutputValues([...outputParameter.fuzzy_output_values]);
+        }
+        isLocalEdit.current = false;
+    }, [outputParameter.fuzzy_output_values, outputParameter.start, outputParameter.end]);
 
     // Reset local state when switching to different parameter
     useEffect(() => {
         setLocalOutputValues([...outputParameter.fuzzy_output_values]);
-        setIsDirty(false);
     }, [outputParameter.id]);
+    
+    // Sync local changes back to parent state
+    useEffect(() => {
+        if (isLocalEdit.current) {
+            setOutputParameter({
+                ...outputParameterRef.current,
+                fuzzy_output_values: localOutputValues
+            });
+        }
+    }, [localOutputValues, setOutputParameter]);
 
     // Sort fuzzy output values by 'a' for consistent ordering with graph
     const sortedFuzzyOutputValues = [...localOutputValues].sort((a, b) => a.a - b.a);
@@ -56,7 +80,8 @@ const OutputParameterCard: React.FC<OutputParameterCardProps> = ({
     // Same logic as input parameters - overlapping trapezoidal membership functions
     // A.c = B.a, A.d = B.b (overlapping terms)
     // Constraint: a < b <= c < d
-    const handleTermChange = useCallback((updatedValue: FuzzyOutputValueResponse, editedParam?: 'a' | 'b' | 'c' | 'd') => {
+    const handleTermChange = useCallback((updatedValue: FuzzyOutputValueResponse) => {
+        isLocalEdit.current = true;  // Mark as local edit to sync back to parent
         setLocalOutputValues(prevValues => {
             const sorted = [...prevValues].sort((a, b) => a.a - b.a);
             
@@ -64,8 +89,8 @@ const OutputParameterCard: React.FC<OutputParameterCardProps> = ({
             const actualIndex = sorted.findIndex(v => v.id === updatedValue.id);
             if (actualIndex === -1) return prevValues;
             
-            // Create a copy with the updated value
-            const newValues = [...sorted];
+            // Create deep copies of all terms
+            const newValues = sorted.map(v => ({ ...v }));
             newValues[actualIndex] = { ...updatedValue };
             
             const numTerms = newValues.length;
@@ -128,10 +153,11 @@ const OutputParameterCard: React.FC<OutputParameterCardProps> = ({
             }
             
             // Final enforcement of fixed boundaries
-            newValues[0].a = outputParameter.start - epsilon;
+            // For Ruspini partition: first term a=b=start, last term c=d=end
+            newValues[0].a = outputParameter.start;
             newValues[0].b = outputParameter.start;
             newValues[numTerms - 1].c = outputParameter.end;
-            newValues[numTerms - 1].d = outputParameter.end + epsilon;
+            newValues[numTerms - 1].d = outputParameter.end;
             
             // Final validation: ensure all terms satisfy a < b <= c < d
             for (let i = 0; i < numTerms; i++) {
@@ -142,15 +168,14 @@ const OutputParameterCard: React.FC<OutputParameterCardProps> = ({
             }
             
             // Re-apply fixed boundaries (in case validation changed them)
-            newValues[0].a = outputParameter.start - epsilon;
+            newValues[0].a = outputParameter.start;
             newValues[0].b = outputParameter.start;
             newValues[numTerms - 1].c = outputParameter.end;
-            newValues[numTerms - 1].d = outputParameter.end + epsilon;
+            newValues[numTerms - 1].d = outputParameter.end;
             
             return newValues;
         });
-        setIsDirty(true);
-    }, [outputParameter.start, outputParameter.end]);
+    }, [outputParameter.start, outputParameter.end, localOutputValues]);
 
     // Delete a term
     const handleDeleteTerm = useCallback((id: number) => {
@@ -158,35 +183,6 @@ const OutputParameterCard: React.FC<OutputParameterCardProps> = ({
             refetchData();
         });
     }, [refetchData]);
-
-    // Save all changes
-    const handleSaveAll = useCallback(async () => {
-        try {
-            // Save all terms
-            for (const value of localOutputValues) {
-                await new Promise<void>((resolve) => {
-                    updateFuzzyOutputValueById(value.id, {
-                        value: value.value,
-                        a: value.a,
-                        b: value.b,
-                        c: value.c,
-                        d: value.d,
-                        is_triangle: value.is_triangle,
-                    }, () => resolve());
-                });
-            }
-            setIsDirty(false);
-            refetchData();
-        } catch (error) {
-            console.error('Failed to save fuzzy output values:', error);
-        }
-    }, [localOutputValues, refetchData]);
-
-    // Cancel changes
-    const handleCancel = useCallback(() => {
-        setLocalOutputValues([...outputParameter.fuzzy_output_values]);
-        setIsDirty(false);
-    }, [outputParameter.fuzzy_output_values]);
 
     // Switch two terms (swap their a,b,c,d values, not IDs or names)
     const handleSwitch = useCallback((id1: number, id2: number) => {
@@ -199,12 +195,52 @@ const OutputParameterCard: React.FC<OutputParameterCardProps> = ({
         <ParameterCard
             name={outputParameter.name}
             setParameter={(name: string, start: number, end: number) => {
+                const startChanged = start !== outputParameter.start;
+                const endChanged = end !== outputParameter.end;
+                const epsilon = (end - start) * 0.001;
+                
                 updateOutputParameterById(outputParameter.id, {
                     name: name,
                     start: start,
                     end: end
                 }, () => { 
-                    setOutputParameter({ ...outputParameter, name: name, start: start, end: end }); 
+                    setOutputParameter({ ...outputParameter, name: name, start: start, end: end });
+                    
+                    // Обновить граничные термы при изменении start/end
+                    const sorted = [...localOutputValues].sort((a, b) => a.a - b.a);
+                    if (sorted.length > 0) {
+                        let needsRefetch = false;
+                        if (startChanged) {
+                            // Обновить первую терму: a и b должны быть равны start
+                            const firstTerm = sorted[0];
+                            updateFuzzyOutputValueById(firstTerm.id, {
+                                value: firstTerm.value,
+                                a: start,
+                                b: start,
+                                c: firstTerm.c,
+                                d: firstTerm.d,
+                                is_triangle: firstTerm.is_triangle,
+                            }, () => {});
+                            needsRefetch = true;
+                        }
+                        if (endChanged) {
+                            // Обновить последнюю терму: c и d должны быть равны end
+                            const lastTerm = sorted[sorted.length - 1];
+                            updateFuzzyOutputValueById(lastTerm.id, {
+                                value: lastTerm.value,
+                                a: lastTerm.a,
+                                b: lastTerm.b,
+                                c: end,
+                                d: end,
+                                is_triangle: lastTerm.is_triangle,
+                            }, () => {});
+                            needsRefetch = true;
+                        }
+                        if (needsRefetch) {
+                            // Обновить данные после изменения термов
+                            setTimeout(() => refetchData(), 100);
+                        }
+                    }
                 });
             }}
             start={outputParameter.start}
@@ -212,6 +248,10 @@ const OutputParameterCard: React.FC<OutputParameterCardProps> = ({
             removeCallback={() => removeOutputParameterById(outputParameter.id, deleteCallback)}
             isOpen={isOpen}
             setIsOpen={setIsOpen}
+            switchUpCallback={switchUpCallback}
+            switchDownCallback={switchDownCallback}
+            canSwitchUp={canSwitchUp}
+            canSwitchDown={canSwitchDown}
         >
             <FuzzyGraph start={outputParameter.start} end={outputParameter.end} units={sortedFuzzyOutputValues} />
             {
@@ -224,7 +264,7 @@ const OutputParameterCard: React.FC<OutputParameterCardProps> = ({
                         parameterEnd={outputParameter.end}
                         isFirst={index === 0}
                         isLast={index === sortedFuzzyOutputValues.length - 1}
-                        onValueChange={(updated: FuzzyOutputValueResponse, editedParam?: 'a' | 'b' | 'c' | 'd') => handleTermChange(updated, editedParam)}
+                        onValueChange={(updated: FuzzyOutputValueResponse) => handleTermChange(updated)}
                         onDelete={() => handleDeleteTerm(fuzzyOutputValue.id)}
                         onMoveUp={index > 0 ? () => handleSwitch(fuzzyOutputValue.id, sortedFuzzyOutputValues[index - 1].id) : undefined}
                         onMoveDown={index < sortedFuzzyOutputValues.length - 1 ? () => handleSwitch(fuzzyOutputValue.id, sortedFuzzyOutputValues[index + 1].id) : undefined}
@@ -239,12 +279,6 @@ const OutputParameterCard: React.FC<OutputParameterCardProps> = ({
                         }
                     )
                 }>Добавить терм</AccentButton>
-                {isDirty && (
-                    <>
-                        <AccentButton onClick={handleSaveAll}>Сохранить изменения</AccentButton>
-                        <SecondaryButton onClick={handleCancel}>Отменить</SecondaryButton>
-                    </>
-                )}
             </div>
         </ParameterCard>
     );

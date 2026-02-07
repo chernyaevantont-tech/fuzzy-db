@@ -155,13 +155,26 @@ const ParameterCard: React.FC<ParameterCardProps> = ({
         console.log("blocking", isBlocking);
     }, [isBlocking])
 
+    // Синхронизация локального состояния с props при их изменении
+    useEffect(() => {
+        setCurrentName(name);
+    }, [name]);
+
+    useEffect(() => {
+        setCurrentStartString(start.toString());
+    }, [start]);
+
+    useEffect(() => {
+        setCurrentEndString(end.toString());
+    }, [end]);
+
     return (
         <div className={classes.ParameterCard}>
             <div className={classes.Top}>
                 <div className={classes.Name}>
                     <TextBorderedInput value={currentName} setValue={saveNameOnChange} onBlur={saveNameOnBlur} className={classes.NameInput} />
                 </div>
-                {switchUpCallback && (
+                {(switchUpCallback || switchDownCallback) && (
                     <div className={classes.SwitchButtons}>
                         {canSwitchUp ? (
                             <FaAngleUp className={classes.IconSwitch} onClick={switchUpCallback} title="Переместить вверх" />

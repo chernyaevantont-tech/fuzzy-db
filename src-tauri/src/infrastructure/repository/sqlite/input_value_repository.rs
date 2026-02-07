@@ -17,6 +17,36 @@ impl SqliteInputValueRepository {
 }
 
 impl InputValueRepository for SqliteInputValueRepository {
+    fn get_by_input_parameter_id(&self, input_parameter_id: i64) -> Result<Vec<InputValue>, DomainError> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| DomainError::Internal(e.to_string()))?;
+        
+        let mut stmt = conn
+            .prepare("SELECT id, input_parameter_id, value, a, b, c, d, is_triangle FROM input_value WHERE input_parameter_id = ?")
+            .map_err(|e| DomainError::Internal(e.to_string()))?;
+        
+        let values = stmt
+            .query_map(params![input_parameter_id], |row| {
+                Ok(InputValue {
+                    id: row.get(0)?,
+                    input_parameter_id: row.get(1)?,
+                    value: row.get(2)?,
+                    a: row.get(3)?,
+                    b: row.get(4)?,
+                    c: row.get(5)?,
+                    d: row.get(6)?,
+                    is_triangle: row.get(7)?,
+                })
+            })
+            .map_err(|e| DomainError::Internal(e.to_string()))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| DomainError::Internal(e.to_string()))?;
+        
+        Ok(values)
+    }
+
     fn create(&self, model: &InputValue) -> Result<i64, DomainError> {
         let mut conn = self
             .conn
@@ -86,7 +116,7 @@ impl InputValueRepository for SqliteInputValueRepository {
                 a = new_prev_c;  // = prev.c (overlap constraint)
                 b = new_prev_d;  // = prev.d (overlap constraint)
                 c = input_parameter_end;
-                d = input_parameter_end + epsilon;
+                d = input_parameter_end;
             } else {
                 // Not last term, just split it in middle
                 let mid = (prev_a + prev_d) / 2.0;
@@ -111,11 +141,11 @@ impl InputValueRepository for SqliteInputValueRepository {
             }
         } else {
             // First term: covers entire range
-            let epsilon = (input_parameter_end - input_parameter_start) * 0.001;
-            a = input_parameter_start - epsilon;
+            // For Ruspini partition: a=b=start (no rise), c=d=end (no fall)
+            a = input_parameter_start;
             b = input_parameter_start;
             c = input_parameter_end;
-            d = input_parameter_end + epsilon;
+            d = input_parameter_end;
         }
 
         let result = {
@@ -478,10 +508,12 @@ impl InputValueRepository for SqliteInputValueRepository {
     }
 
     fn update_by_id(&self, id: i64, model: &InputValue) -> Result<(), DomainError> {
-        // Validate Ruspini partition constraints: a < b <= c < d
-        if model.a >= model.b {
+        // Validate Ruspini partition constraints: a <= b <= c <= d
+        // First term: a = b (allowed)
+        // Last term: c = d (allowed)
+        if model.a > model.b {
             return Err(DomainError::Validation(format!(
-                "Invalid input_value: a ({}) must be < b ({})",
+                "Invalid input_value: a ({}) must be <= b ({})",
                 model.a, model.b
             )));
         }
@@ -491,9 +523,9 @@ impl InputValueRepository for SqliteInputValueRepository {
                 model.b, model.c
             )));
         }
-        if model.c >= model.d {
+        if model.c > model.d {
             return Err(DomainError::Validation(format!(
-                "Invalid input_value: c ({}) must be < d ({})",
+                "Invalid input_value: c ({}) must be <= d ({})",
                 model.c, model.d
             )));
         }

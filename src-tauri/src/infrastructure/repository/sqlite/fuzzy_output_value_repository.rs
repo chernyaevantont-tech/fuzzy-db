@@ -18,6 +18,36 @@ impl SqliteFuzzyOutputValueRepository {
 }
 
 impl FuzzyOutputValueRepository for SqliteFuzzyOutputValueRepository {
+    fn get_by_output_parameter_id(&self, output_parameter_id: i64) -> Result<Vec<FuzzyOutputValue>, DomainError> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| DomainError::Internal(e.to_string()))?;
+        
+        let mut stmt = conn
+            .prepare("SELECT id, output_parameter_id, value, a, b, c, d, is_triangle FROM fuzzy_output_value WHERE output_parameter_id = ?")
+            .map_err(|e| DomainError::Internal(e.to_string()))?;
+        
+        let values = stmt
+            .query_map(params![output_parameter_id], |row| {
+                Ok(FuzzyOutputValue {
+                    id: row.get(0)?,
+                    output_parameter_id: row.get(1)?,
+                    value: row.get(2)?,
+                    a: row.get(3)?,
+                    b: row.get(4)?,
+                    c: row.get(5)?,
+                    d: row.get(6)?,
+                    is_triangle: row.get(7)?,
+                })
+            })
+            .map_err(|e| DomainError::Internal(e.to_string()))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| DomainError::Internal(e.to_string()))?;
+        
+        Ok(values)
+    }
+
     fn create(&self, model: &FuzzyOutputValue) -> Result<i64, DomainError> {
         let mut conn = self
             .conn
@@ -88,7 +118,7 @@ impl FuzzyOutputValueRepository for SqliteFuzzyOutputValueRepository {
                     a = new_prev_c;  // = prev.c (overlap constraint)
                     b = new_prev_d;  // = prev.d (overlap constraint)
                     c = output_parameter_end;
-                    d = output_parameter_end + epsilon;
+                    d = output_parameter_end;
                 } else {
                     // Not last term, just split it in middle
                     let mid = (prev_a + prev_d) / 2.0;
@@ -113,11 +143,11 @@ impl FuzzyOutputValueRepository for SqliteFuzzyOutputValueRepository {
                 }
             } else {
                 // First term: covers entire range
-                let epsilon = (output_parameter_end - output_parameter_start) * 0.001;
-                a = output_parameter_start - epsilon;
+                // For Ruspini partition: a=b=start (no rise), c=d=end (no fall)
+                a = output_parameter_start;
                 b = output_parameter_start;
                 c = output_parameter_end;
-                d = output_parameter_end + epsilon;
+                d = output_parameter_end;
             }
 
             let mut stmt = transaction
@@ -310,10 +340,12 @@ impl FuzzyOutputValueRepository for SqliteFuzzyOutputValueRepository {
     }
 
     fn update_by_id(&self, id: i64, model: &FuzzyOutputValue) -> Result<(), DomainError> {
-        // Validate Ruspini partition constraints: a < b <= c < d (same as input_value)
-        if model.a >= model.b {
+        // Validate Ruspini partition constraints: a <= b <= c <= d
+        // First term: a = b (allowed)
+        // Last term: c = d (allowed)
+        if model.a > model.b {
             return Err(DomainError::Validation(format!(
-                "Invalid fuzzy_output_value: a ({}) must be < b ({})",
+                "Invalid fuzzy_output_value: a ({}) must be <= b ({})",
                 model.a, model.b
             )));
         }
@@ -323,9 +355,9 @@ impl FuzzyOutputValueRepository for SqliteFuzzyOutputValueRepository {
                 model.b, model.c
             )));
         }
-        if model.c >= model.d {
+        if model.c > model.d {
             return Err(DomainError::Validation(format!(
-                "Invalid fuzzy_output_value: c ({}) must be < d ({})",
+                "Invalid fuzzy_output_value: c ({}) must be <= d ({})",
                 model.c, model.d
             )));
         }

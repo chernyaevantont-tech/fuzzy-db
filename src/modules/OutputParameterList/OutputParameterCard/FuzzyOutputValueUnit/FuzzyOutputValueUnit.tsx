@@ -1,5 +1,6 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { FuzzyOutputValueResponse } from '../../../../types/fuzzy_output_value';
+import { updateFuzzyOutputValueById } from '../../../../api/fuzzy_output_value/updateFuzzyOutputValueById';
 import classes from './FuzzyOutputValueUnit.module.css';
 
 // Color palette - should match FuzzyGraph
@@ -15,7 +16,7 @@ interface FuzzyOutputValueUnitProps {
     parameterEnd: number;
     isFirst: boolean;
     isLast: boolean;
-    onValueChange: (updated: FuzzyOutputValueResponse, editedParam?: 'a' | 'b' | 'c' | 'd') => void;
+    onValueChange: (updated: FuzzyOutputValueResponse) => void;
     onDelete: () => void;
     onMoveUp?: () => void;
     onMoveDown?: () => void;
@@ -35,27 +36,61 @@ const FuzzyOutputValueUnit: React.FC<FuzzyOutputValueUnitProps> = ({
 }) => {
     const color = COLORS[index % COLORS.length];
     
-    // Локальный стейт для названия терма
+    // Локальный стейт для названия терма (строка)
     const [localValue, setLocalValue] = useState(fuzzyOutputValue.value);
     
-    // Локальный стейт для чисел
+    // Локальный стейт для чисел (строки для свободного ввода)
     const [localA, setLocalA] = useState(fuzzyOutputValue.a.toFixed(2));
     const [localB, setLocalB] = useState(fuzzyOutputValue.b.toFixed(2));
     const [localC, setLocalC] = useState(fuzzyOutputValue.c.toFixed(2));
     const [localD, setLocalD] = useState(fuzzyOutputValue.d.toFixed(2));
     
+    // Отслеживаем ID для синхронизации при переключении термов
+    const [prevId, setPrevId] = useState(fuzzyOutputValue.id);
+    
     // Синхронизация с props
     useEffect(() => {
-        setLocalValue(fuzzyOutputValue.value);
-        setLocalA(fuzzyOutputValue.a.toFixed(2));
-        setLocalB(fuzzyOutputValue.b.toFixed(2));
-        setLocalC(fuzzyOutputValue.c.toFixed(2));
-        setLocalD(fuzzyOutputValue.d.toFixed(2));
-    }, [fuzzyOutputValue]);
+        if (fuzzyOutputValue.id !== prevId) {
+            // Сменился терм - полная синхронизация
+            setLocalValue(fuzzyOutputValue.value);
+            setLocalA(fuzzyOutputValue.a.toFixed(2));
+            setLocalB(fuzzyOutputValue.b.toFixed(2));
+            setLocalC(fuzzyOutputValue.c.toFixed(2));
+            setLocalD(fuzzyOutputValue.d.toFixed(2));
+            setPrevId(fuzzyOutputValue.id);
+        } else {
+            // Тот же терм - синхронизируем только числа (для соседних термов)
+            // НЕ трогаем localValue, чтобы не сбросить то что пользователь вводит
+            setLocalA(fuzzyOutputValue.a.toFixed(2));
+            setLocalB(fuzzyOutputValue.b.toFixed(2));
+            setLocalC(fuzzyOutputValue.c.toFixed(2));
+            setLocalD(fuzzyOutputValue.d.toFixed(2));
+        }
+    }, [fuzzyOutputValue, prevId]);
 
+    // === ТЕКСТ (название терма) ===
+    
+    const handleTextChange = useCallback((newValue: string) => {
+        setLocalValue(newValue);
+        // НЕ сохраняем при вводе, только обновляем локальный стейт
+    }, []);
+    
     const handleTextBlur = useCallback(() => {
+        // Сохраняем только если значение изменилось
         if (localValue !== fuzzyOutputValue.value) {
-            onValueChange({ ...fuzzyOutputValue, value: localValue });
+            const updatedValue = { ...fuzzyOutputValue, value: localValue };
+            
+            updateFuzzyOutputValueById(fuzzyOutputValue.id, {
+                value: localValue,
+                a: fuzzyOutputValue.a,
+                b: fuzzyOutputValue.b,
+                c: fuzzyOutputValue.c,
+                d: fuzzyOutputValue.d,
+                is_triangle: fuzzyOutputValue.is_triangle,
+            }, () => {
+                // Обновляем родительский state после успешного сохранения
+                onValueChange(updatedValue);
+            });
         }
     }, [localValue, fuzzyOutputValue, onValueChange]);
     
@@ -65,8 +100,10 @@ const FuzzyOutputValueUnit: React.FC<FuzzyOutputValueUnitProps> = ({
         }
     }, []);
 
+    // === ЧИСЛА (a, b, c, d) ===
+    
     const handleNumberChange = useCallback((param: 'a' | 'b' | 'c' | 'd', valueStr: string) => {
-        // Обновляем локальный стейт
+        // Только обновляем локальный стейт для свободного ввода
         if (param === 'a') setLocalA(valueStr);
         else if (param === 'b') setLocalB(valueStr);
         else if (param === 'c') setLocalC(valueStr);
@@ -75,9 +112,11 @@ const FuzzyOutputValueUnit: React.FC<FuzzyOutputValueUnitProps> = ({
     
     const handleNumberBlur = useCallback((param: 'a' | 'b' | 'c' | 'd') => {
         const valueStr = param === 'a' ? localA : param === 'b' ? localB : param === 'c' ? localC : localD;
+        
+        // Валидация - парсим число
         const value = parseFloat(valueStr);
         if (isNaN(value)) {
-            // Восстанавливаем предыдущее значение
+            // Невалидное число - восстанавливаем из props
             if (param === 'a') setLocalA(fuzzyOutputValue.a.toFixed(2));
             else if (param === 'b') setLocalB(fuzzyOutputValue.b.toFixed(2));
             else if (param === 'c') setLocalC(fuzzyOutputValue.c.toFixed(2));
@@ -87,91 +126,76 @@ const FuzzyOutputValueUnit: React.FC<FuzzyOutputValueUnitProps> = ({
         
         const epsilon = (parameterEnd - parameterStart) * 0.001;
         
-        // Clamp strictly within parameter range (only epsilon margin for boundary terms)
-        // First term a can be slightly before start, last term d can be slightly after end
-        const minAllowed = isFirst ? parameterStart - epsilon : parameterStart;
-        const maxAllowed = isLast ? parameterEnd + epsilon : parameterEnd;
-        let clampedValue = Math.max(minAllowed, Math.min(maxAllowed, value));
+        // Ограничиваем диапазоном параметра
+        const clampedValue = Math.max(parameterStart, Math.min(parameterEnd, value));
         
+        // Создаем обновленный объект
         let newValue = { ...fuzzyOutputValue };
-        
         newValue[param] = clampedValue;
 
-        // Enforce constraint within this term: a < b <= c < d
-        // Adjust other values to maintain validity, respecting neighbor sync points
-        if (param === 'b') {
-            if (newValue.b <= newValue.a) {
-                if (isFirst) {
-                    newValue.b = newValue.a + epsilon;
-                    clampedValue = newValue.b;
-                } else {
-                    newValue.a = newValue.b - epsilon;
-                }
-            }
-            if (newValue.b > newValue.c) {
-                newValue.c = newValue.b;
-            }
-            if (newValue.c >= newValue.d) {
-                if (isLast) {
-                    newValue.c = newValue.d - epsilon;
-                } else {
-                    newValue.d = newValue.c + epsilon;
-                }
-            }
-        } else if (param === 'c') {
+        // Применяем ограничения Ruspini partition
+        if (isFirst) {
+            // Первый терм: a и b фиксированы на start
+            newValue.a = parameterStart;
+            newValue.b = parameterStart;
             if (newValue.c < newValue.b) {
-                newValue.b = newValue.c;
-                if (newValue.b <= newValue.a) {
-                    if (isFirst) {
-                        newValue.b = newValue.a + epsilon;
-                        newValue.c = newValue.b;
-                        clampedValue = newValue.c;
-                    } else {
-                        newValue.a = newValue.b - epsilon;
-                    }
-                }
-            }
-            if (newValue.c >= newValue.d) {
-                if (isLast) {
-                    newValue.c = newValue.d - epsilon;
-                    clampedValue = newValue.c;
-                } else {
-                    newValue.d = newValue.c + epsilon;
-                }
-            }
-        } else if (param === 'a') {
-            if (newValue.a >= newValue.b) {
-                newValue.b = newValue.a + epsilon;
-            }
-            if (newValue.b > newValue.c) {
                 newValue.c = newValue.b;
             }
-            if (newValue.c >= newValue.d) {
+            if (newValue.d <= newValue.c) {
                 newValue.d = newValue.c + epsilon;
             }
-        } else if (param === 'd') {
-            if (newValue.d <= newValue.c) {
-                newValue.c = newValue.d - epsilon;
-            }
-            if (newValue.c < newValue.b) {
+        } else if (isLast) {
+            // Последний терм: c и d фиксированы на end
+            newValue.c = parameterEnd;
+            newValue.d = parameterEnd;
+            if (newValue.b > newValue.c) {
                 newValue.b = newValue.c;
             }
-            if (newValue.b <= newValue.a) {
+            if (newValue.a >= newValue.b) {
                 newValue.a = newValue.b - epsilon;
+            }
+        } else {
+            // Средний терм: все редактируемы, но a < b <= c < d
+            if (param === 'a') {
+                if (newValue.a >= newValue.b) newValue.b = newValue.a + epsilon;
+                if (newValue.b > newValue.c) newValue.c = newValue.b;
+                if (newValue.c >= newValue.d) newValue.d = newValue.c + epsilon;
+            } else if (param === 'b') {
+                if (newValue.b <= newValue.a) newValue.a = newValue.b - epsilon;
+                if (newValue.b > newValue.c) newValue.c = newValue.b;
+                if (newValue.c >= newValue.d) newValue.d = newValue.c + epsilon;
+            } else if (param === 'c') {
+                if (newValue.c < newValue.b) newValue.b = newValue.c;
+                if (newValue.b <= newValue.a) newValue.a = newValue.b - epsilon;
+                if (newValue.c >= newValue.d) newValue.d = newValue.c + epsilon;
+            } else if (param === 'd') {
+                if (newValue.d <= newValue.c) newValue.c = newValue.d - epsilon;
+                if (newValue.c < newValue.b) newValue.b = newValue.c;
+                if (newValue.b <= newValue.a) newValue.a = newValue.b - epsilon;
             }
         }
 
-        onValueChange(newValue, param);
-    }, [fuzzyOutputValue, localA, localB, localC, localD, parameterStart, parameterEnd, isFirst, isLast, onValueChange]);
+        // Синхронизация с соседними термами (через parent)
+        onValueChange(newValue);
+        
+        // Сохраняем в БД - используем ТЕКУЩЕЕ localValue (не из props!)
+        updateFuzzyOutputValueById(fuzzyOutputValue.id, {
+            value: localValue,  // <-- актуальное значение из локального стейта
+            a: newValue.a,
+            b: newValue.b,
+            c: newValue.c,
+            d: newValue.d,
+            is_triangle: fuzzyOutputValue.is_triangle,
+        }, () => {
+            // Успешно сохранено
+        });
+    }, [localA, localB, localC, localD, localValue, fuzzyOutputValue, parameterStart, parameterEnd, isFirst, isLast, onValueChange]);
 
-    // Overlapping Ruspini partition (same as InputValueUnit):
-    // First term: a and b are fixed (start of range), c and d editable
-    // Last term: a and b editable, c and d are fixed (end of range)
-    // Middle terms: all fields editable (a affects prev.c, d affects next.b)
-    const aDisabled = isFirst;  // Only first term: a is fixed to start - epsilon
-    const bDisabled = isFirst;  // Only first term: b is fixed to start
-    const cDisabled = isLast;   // Only last term: c is fixed to end
-    const dDisabled = isLast;   // Only last term: d is fixed to end + epsilon
+    // Disabled состояния для полей
+    const aDisabled = isFirst;
+    const bDisabled = isFirst;
+    const cDisabled = isLast;
+    const dDisabled = isLast;
 
     return (
         <div className={classes.Container}>
@@ -183,7 +207,7 @@ const FuzzyOutputValueUnit: React.FC<FuzzyOutputValueUnitProps> = ({
                 <input
                     type="text"
                     value={localValue}
-                    onChange={(e) => setLocalValue(e.target.value)}
+                    onChange={(e) => handleTextChange(e.target.value)}
                     onBlur={handleTextBlur}
                     onKeyDown={handleTextKeyDown}
                     className={classes.ValueInput}

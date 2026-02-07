@@ -1,6 +1,7 @@
 import { InputParameterResponse } from '../../types/input_parameter';
 import classes from './InputParameter.module.css';
 import InputParameterCard from './InputParameterCard/InputParameterCard';
+import { switchInputParameters } from '../../api/input_parameter/switchInputParameters';
 
 interface InputParameterListProps {
     inputParameters: Array<InputParameterResponse>,
@@ -17,6 +18,19 @@ const InputParameterList: React.FC<InputParameterListProps> = ({
     openCards,
     setOpenCards,
 }) => {
+    // Обработчики для перемещения параметров
+    const handleSwitchUp = (id1: number, id2: number) => {
+        switchInputParameters(id1, id2, () => {
+            refetchData();
+        });
+    };
+
+    const handleSwitchDown = (id1: number, id2: number) => {
+        switchInputParameters(id1, id2, () => {
+            refetchData();
+        });
+    };
+
     return (
         <div className={classes.InputParameterList}>
             {
@@ -34,9 +48,12 @@ const InputParameterList: React.FC<InputParameterListProps> = ({
                             setInputParameters(newInputParameters.filter(x => x.id != id));
                         }}
                         refetchData={refetchData}
-                        allParameters={inputParameters}
                         isOpen={openCards[inputParameter.id] ?? false}
                         setIsOpen={(open) => setOpenCards({ ...openCards, [inputParameter.id]: open })}
+                        switchUpCallback={index > 0 ? () => handleSwitchUp(inputParameter.id, inputParameters[index - 1].id) : undefined}
+                        switchDownCallback={index < inputParameters.length - 1 ? () => handleSwitchDown(inputParameter.id, inputParameters[index + 1].id) : undefined}
+                        canSwitchUp={index > 0}
+                        canSwitchDown={index < inputParameters.length - 1}
                         key={inputParameter.id}
                     />
                 )

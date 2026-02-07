@@ -30,6 +30,7 @@ pub trait InputParameterRepository: Send + Sync {
 }
 
 pub trait InputValueRepository: Send + Sync {
+    fn get_by_input_parameter_id(&self, input_parameter_id: i64) -> Result<Vec<InputValue>, DomainError>;
     fn create(&self, model: &InputValue) -> Result<i64, DomainError>;
     fn remove_by_id(&self, id: i64) -> Result<(), DomainError>;
     fn update_by_id(&self, id: i64, model: &InputValue) -> Result<(), DomainError>;
@@ -45,6 +46,7 @@ pub trait OutputParameterRepository: Send + Sync {
 }
 
 pub trait FuzzyOutputValueRepository: Send + Sync {
+    fn get_by_output_parameter_id(&self, output_parameter_id: i64) -> Result<Vec<FuzzyOutputValue>, DomainError>;
     fn create(&self, model: &FuzzyOutputValue) -> Result<i64, DomainError>;
     fn remove_by_id(&self, id: i64) -> Result<(), DomainError>;
     fn update_by_id(&self, id: i64, model: &FuzzyOutputValue) -> Result<(), DomainError>;

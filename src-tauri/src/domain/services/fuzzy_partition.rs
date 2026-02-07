@@ -12,17 +12,45 @@
 /// Calculate membership value for a trapezoidal fuzzy set at a given point x
 /// 
 /// For a trapezoidal function with parameters (a, b, c, d):
-/// - μ(x) = 0 when x <= a or x >= d (strictly outside)
-/// - μ(x) = (x - a) / (b - a) when a < x < b (rising edge)
+/// - μ(x) = 0 when x < a or x > d (strictly outside)
+/// - μ(x) = (x - a) / (b - a) when a <= x < b (rising edge), but if a=b, skip
 /// - μ(x) = 1 when b <= x <= c (plateau)
-/// - μ(x) = (d - x) / (d - c) when c < x < d (falling edge)
+/// - μ(x) = (d - x) / (d - c) when c < x <= d (falling edge), but if c=d, skip
+///
+/// Special cases for Ruspini partition:
+/// - First term: a = b (no rising edge, plateau starts at a)
+/// - Last term: c = d (no falling edge, plateau ends at d)
 pub fn membership_value(x: f32, a: f32, b: f32, c: f32, d: f32) -> f32 {
-    // Outside range (strictly)
-    if x <= a || x >= d {
+    // Strictly outside range
+    if x < a || x > d {
         return 0.0;
     }
 
-    // Rising edge (a < x < b)
+    // Handle case when a = b (first term): no rising edge
+    // x = a = b should be in plateau
+    if (a - b).abs() < f32::EPSILON {
+        // No rising edge, go directly to plateau or falling
+        if x <= c {
+            return 1.0; // Plateau
+        }
+        // Falling edge (c < x <= d)
+        if (c - d).abs() < f32::EPSILON {
+            return 1.0; // c = d means plateau extends to d
+        }
+        return (d - x) / (d - c);
+    }
+
+    // Handle case when c = d (last term): no falling edge
+    // x = c = d should be in plateau
+    if (c - d).abs() < f32::EPSILON {
+        if x < b {
+            return (x - a) / (b - a); // Rising edge
+        }
+        return 1.0; // Plateau extends to d
+    }
+
+    // Normal trapezoidal case
+    // Rising edge (a <= x < b)
     if x < b {
         return (x - a) / (b - a);
     }
@@ -32,7 +60,7 @@ pub fn membership_value(x: f32, a: f32, b: f32, c: f32, d: f32) -> f32 {
         return 1.0;
     }
 
-    // Falling edge (c < x < d)
+    // Falling edge (c < x <= d)
     (d - x) / (d - c)
 }
 
@@ -47,9 +75,9 @@ pub fn sum_memberships(terms: &[(f32, f32, f32, f32)], x: f32) -> f32 {
 /// Check if a set of fuzzy terms forms a valid fuzzy partition (Ruspini partition)
 /// 
 /// A valid partition means:
-/// 1. For each term: a < b <= c < d
-/// 2. First term: b = start (a is slightly before start)
-/// 3. Last term: c = end (d is slightly after end)
+/// 1. For each term: a <= b <= c <= d (first term: a=b, last term: c=d allowed)
+/// 2. First term: a = b = start
+/// 3. Last term: c = d = end
 /// 4. Adjacent terms: prev.c = next.a, prev.d = next.b
 /// 5. Sum of membership values at any point within [start, end] equals 1
 pub fn validate_fuzzy_partition(
@@ -62,30 +90,66 @@ pub fn validate_fuzzy_partition(
         return Err("No terms provided".to_string());
     }
 
-    // Check constraint a < b <= c < d for each term
+    // Check constraint a <= b <= c <= d for each term
+    // First term: a = b (allowed)
+    // Last term: c = d (allowed)
+    let num_terms = terms.len();
     for (i, term) in terms.iter().enumerate() {
-        if term.0 >= term.1 {
-            return Err(format!(
-                "Term {}: a ({}) must be < b ({})",
-                i, term.0, term.1
-            ));
+        let is_first = i == 0;
+        let is_last = i == num_terms - 1;
+        
+        // First term: a <= b (a = b allowed)
+        // Other terms: a < b (strict)
+        if is_first {
+            if term.0 > term.1 {
+                return Err(format!(
+                    "Term {}: a ({}) must be <= b ({})",
+                    i, term.0, term.1
+                ));
+            }
+        } else {
+            if term.0 >= term.1 {
+                return Err(format!(
+                    "Term {}: a ({}) must be < b ({})",
+                    i, term.0, term.1
+                ));
+            }
         }
+        
         if term.1 > term.2 {
             return Err(format!(
                 "Term {}: b ({}) must be <= c ({})",
                 i, term.1, term.2
             ));
         }
-        if term.2 >= term.3 {
-            return Err(format!(
-                "Term {}: c ({}) must be < d ({})",
-                i, term.2, term.3
-            ));
+        
+        // Last term: c <= d (c = d allowed)
+        // Other terms: c < d (strict)
+        if is_last {
+            if term.2 > term.3 {
+                return Err(format!(
+                    "Term {}: c ({}) must be <= d ({})",
+                    i, term.2, term.3
+                ));
+            }
+        } else {
+            if term.2 >= term.3 {
+                return Err(format!(
+                    "Term {}: c ({}) must be < d ({})",
+                    i, term.2, term.3
+                ));
+            }
         }
     }
 
-    // Check first term: b = start
+    // Check first term: a = b = start
     let first = &terms[0];
+    if (first.0 - start).abs() > tolerance {
+        return Err(format!(
+            "First term's 'a' ({}) should equal start ({})",
+            first.0, start
+        ));
+    }
     if (first.1 - start).abs() > tolerance {
         return Err(format!(
             "First term's 'b' ({}) should equal start ({})",
@@ -93,12 +157,18 @@ pub fn validate_fuzzy_partition(
         ));
     }
 
-    // Check last term: c = end
+    // Check last term: c = d = end
     let last = &terms[terms.len() - 1];
     if (last.2 - end).abs() > tolerance {
         return Err(format!(
             "Last term's 'c' ({}) should equal end ({})",
             last.2, end
+        ));
+    }
+    if (last.3 - end).abs() > tolerance {
+        return Err(format!(
+            "Last term's 'd' ({}) should equal end ({})",
+            last.3, end
         ));
     }
 
@@ -146,10 +216,10 @@ pub fn create_default_partition(num_terms: usize, start: f32, end: f32) -> Vec<(
     }
 
     let range = end - start;
-    let epsilon = range * 0.001;
 
     if num_terms == 1 {
-        return vec![(start - epsilon, start, end, end + epsilon)];
+        // Single term: a = b = start, c = d = end
+        return vec![(start, start, end, end)];
     }
 
     let overlap_width = range / (num_terms as f32 - 1.0) / 2.0;
@@ -159,12 +229,12 @@ pub fn create_default_partition(num_terms: usize, start: f32, end: f32) -> Vec<(
         let center = start + (range * i as f32) / (num_terms as f32 - 1.0);
 
         if i == 0 {
-            // First term
-            terms.push((start - epsilon, start, center, center + overlap_width));
+            // First term: a = b = start
+            terms.push((start, start, center, center + overlap_width));
         } else if i == num_terms - 1 {
-            // Last term
+            // Last term: c = d = end
             let prev = terms[i - 1];
-            terms.push((prev.2, prev.3, end, end + epsilon));
+            terms.push((prev.2, prev.3, end, end));
         } else {
             // Middle terms
             let prev = terms[i - 1];
@@ -269,16 +339,19 @@ mod tests {
 
     #[test]
     fn test_validate_single_term() {
-        let terms = vec![(-0.001, 0.0, 1.0, 1.001)];
+        // Single term: a = b = start, c = d = end
+        let terms = vec![(0.0, 0.0, 1.0, 1.0)];
         let result = validate_fuzzy_partition(&terms, 0.0, 1.0, TOLERANCE);
         assert!(result.is_ok(), "{:?}", result);
     }
 
     #[test]
     fn test_validate_two_terms() {
+        // First term: a = b = start
+        // Last term: c = d = end
         let terms = vec![
-            (-0.001, 0.0, 0.5, 0.7),
-            (0.5, 0.7, 1.0, 1.001),
+            (0.0, 0.0, 0.5, 0.7),
+            (0.5, 0.7, 1.0, 1.0),
         ];
         let result = validate_fuzzy_partition(&terms, 0.0, 1.0, TOLERANCE);
         assert!(result.is_ok(), "{:?}", result);
@@ -286,18 +359,25 @@ mod tests {
 
     #[test]
     fn test_validate_three_terms() {
+        // First term: a = b = start
+        // Last term: c = d = end
         let terms = vec![
-            (-0.001, 0.0, 0.3, 0.5),
+            (0.0, 0.0, 0.3, 0.5),
             (0.3, 0.5, 0.7, 0.9),
-            (0.7, 0.9, 1.0, 1.001),
+            (0.7, 0.9, 1.0, 1.0),
         ];
         let result = validate_fuzzy_partition(&terms, 0.0, 1.0, TOLERANCE);
         assert!(result.is_ok(), "{:?}", result);
     }
 
     #[test]
-    fn test_validate_detects_a_ge_b() {
-        let terms = vec![(0.1, 0.0, 1.0, 1.001)]; // a > b
+    fn test_validate_detects_a_gt_b() {
+        // For non-first terms, a must be < b
+        let terms = vec![
+            (0.0, 0.0, 0.3, 0.5),
+            (0.4, 0.3, 0.7, 0.9),  // a > b in middle term
+            (0.7, 0.9, 1.0, 1.0),
+        ];
         let result = validate_fuzzy_partition(&terms, 0.0, 1.0, TOLERANCE);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("must be < b"));
@@ -305,15 +385,20 @@ mod tests {
 
     #[test]
     fn test_validate_detects_b_gt_c() {
-        let terms = vec![(-0.001, 0.6, 0.4, 1.001)]; // b > c
+        // b > c is invalid for any term
+        let terms = vec![(0.0, 0.6, 0.4, 1.0)]; // b > c
         let result = validate_fuzzy_partition(&terms, 0.0, 1.0, TOLERANCE);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("must be <= c"));
     }
 
     #[test]
-    fn test_validate_detects_c_ge_d() {
-        let terms = vec![(-0.001, 0.0, 1.001, 1.0)]; // c > d
+    fn test_validate_detects_c_gt_d() {
+        // For non-last terms, c must be < d
+        let terms = vec![
+            (0.0, 0.0, 0.5, 0.4),  // c > d in first term (but first term is also last here, so this is for middle)
+            (0.5, 0.7, 1.0, 1.0),
+        ];
         let result = validate_fuzzy_partition(&terms, 0.0, 1.0, TOLERANCE);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("must be < d"));
@@ -322,8 +407,8 @@ mod tests {
     #[test]
     fn test_validate_detects_wrong_adjacency_c_a() {
         let terms = vec![
-            (-0.001, 0.0, 0.4, 0.6),
-            (0.5, 0.6, 1.0, 1.001), // a != prev.c
+            (0.0, 0.0, 0.4, 0.6),
+            (0.5, 0.6, 1.0, 1.0), // a != prev.c
         ];
         let result = validate_fuzzy_partition(&terms, 0.0, 1.0, TOLERANCE);
         assert!(result.is_err());
@@ -333,8 +418,8 @@ mod tests {
     #[test]
     fn test_validate_detects_wrong_adjacency_d_b() {
         let terms = vec![
-            (-0.001, 0.0, 0.5, 0.6),
-            (0.5, 0.7, 1.0, 1.001), // b != prev.d
+            (0.0, 0.0, 0.5, 0.6),
+            (0.5, 0.7, 1.0, 1.0), // b != prev.d
         ];
         let result = validate_fuzzy_partition(&terms, 0.0, 1.0, TOLERANCE);
         assert!(result.is_err());
@@ -352,10 +437,10 @@ mod tests {
     fn test_create_default_partition_single() {
         let terms = create_default_partition(1, 0.0, 1.0);
         assert_eq!(terms.len(), 1);
+        assert_eq!(terms[0].0, 0.0); // a = start
         assert_eq!(terms[0].1, 0.0); // b = start
         assert_eq!(terms[0].2, 1.0); // c = end
-        assert!(terms[0].0 < 0.0);   // a < start
-        assert!(terms[0].3 > 1.0);   // d > end
+        assert_eq!(terms[0].3, 1.0); // d = end
     }
 
     #[test]
@@ -366,8 +451,10 @@ mod tests {
         assert_eq!(terms[0].2, terms[1].0); // term0.c = term1.a
         assert_eq!(terms[0].3, terms[1].1); // term0.d = term1.b
         // Check boundaries
+        assert_eq!(terms[0].0, 0.0); // first.a = start
         assert_eq!(terms[0].1, 0.0); // first.b = start
         assert_eq!(terms[1].2, 1.0); // last.c = end
+        assert_eq!(terms[1].3, 1.0); // last.d = end
     }
 
     #[test]

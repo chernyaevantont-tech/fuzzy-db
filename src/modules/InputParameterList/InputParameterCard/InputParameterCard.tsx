@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ParameterCard from '../../../components/ParameterCard/ParameterCard';
 import { InputParameterResponse } from '../../../types/input_parameter';
 import AccentButton from '../../../ui/buttons/AccentButton/AccentButton';
-import SecondaryButton from '../../../ui/buttons/SecondaryButton/SecondaryButton';
 import { createInputValue } from '../../../api/input_value/createInputValue';
 import { updateInputParameterById } from '../../../api/input_parameter/updateInputParameter';
 import { removeInputParameterById } from '../../../api/input_parameter/removeInputParameterById';
@@ -21,6 +20,10 @@ interface InputParameterCardProps {
     refetchData: () => void;
     isOpen?: boolean;
     setIsOpen?: (open: boolean) => void;
+    switchUpCallback?: () => void;
+    switchDownCallback?: () => void;
+    canSwitchUp?: boolean;
+    canSwitchDown?: boolean;
 }
 
 const InputParameterCard: React.FC<InputParameterCardProps> = ({
@@ -30,22 +33,45 @@ const InputParameterCard: React.FC<InputParameterCardProps> = ({
     refetchData,
     isOpen,
     setIsOpen,
+    switchUpCallback,
+    switchDownCallback,
+    canSwitchUp = false,
+    canSwitchDown = false,
 }) => {
     // Local state for editing - will be synced with props
     const [localInputValues, setLocalInputValues] = useState<InputValueResponse[]>([]);
-    const [isDirty, setIsDirty] = useState(false);
-
-    // Sync local state with props
+    
+    // Ref to track if changes came from local editing (to sync back to parent)
+    const isLocalEdit = useRef(false);
+    
+    // Ref to store current inputParameter for use in effects
+    const inputParameterRef = useRef(inputParameter);
     useEffect(() => {
-        setLocalInputValues([...inputParameter.input_values]);
-        setIsDirty(false);
-    }, [inputParameter.input_values]);
+        inputParameterRef.current = inputParameter;
+    }, [inputParameter]);
+
+    // Sync local state with props (from parent)
+    useEffect(() => {
+        if (!isLocalEdit.current) {
+            setLocalInputValues([...inputParameter.input_values]);
+        }
+        isLocalEdit.current = false;
+    }, [inputParameter.input_values, inputParameter.start, inputParameter.end]);
 
     // Reset local state when switching to different parameter
     useEffect(() => {
         setLocalInputValues([...inputParameter.input_values]);
-        setIsDirty(false);
     }, [inputParameter.id]);
+    
+    // Sync local changes back to parent state
+    useEffect(() => {
+        if (isLocalEdit.current) {
+            setInputParameter({
+                ...inputParameterRef.current,
+                input_values: localInputValues
+            });
+        }
+    }, [localInputValues, setInputParameter]);
 
     // Sort input values by 'a' for consistent ordering with graph
     const sortedInputValues = [...localInputValues].sort((a, b) => a.a - b.a);
@@ -53,7 +79,8 @@ const InputParameterCard: React.FC<InputParameterCardProps> = ({
     // Update a single term and sync adjacent terms using Ruspini partition rules:
     // A.c = B.a, A.d = B.b (overlapping terms)
     // Constraint: a < b <= c < d
-    const handleTermChange = useCallback((updatedValue: InputValueResponse, editedParam?: 'a' | 'b' | 'c' | 'd') => {
+    const handleTermChange = useCallback((updatedValue: InputValueResponse) => {
+        isLocalEdit.current = true;  // Mark as local edit to sync back to parent
         setLocalInputValues(prevValues => {
             const sorted = [...prevValues].sort((a, b) => a.a - b.a);
             
@@ -61,8 +88,8 @@ const InputParameterCard: React.FC<InputParameterCardProps> = ({
             const actualIndex = sorted.findIndex(v => v.id === updatedValue.id);
             if (actualIndex === -1) return prevValues;
             
-            // Create a copy with the updated value
-            const newValues = [...sorted];
+            // Create deep copies of all terms
+            const newValues = sorted.map(v => ({ ...v }));
             newValues[actualIndex] = { ...updatedValue };
             
             const numTerms = newValues.length;
@@ -127,10 +154,11 @@ const InputParameterCard: React.FC<InputParameterCardProps> = ({
             }
             
             // Final enforcement of fixed boundaries
-            newValues[0].a = inputParameter.start - epsilon;
+            // For Ruspini partition: first term a=b=start, last term c=d=end
+            newValues[0].a = inputParameter.start;
             newValues[0].b = inputParameter.start;
             newValues[numTerms - 1].c = inputParameter.end;
-            newValues[numTerms - 1].d = inputParameter.end + epsilon;
+            newValues[numTerms - 1].d = inputParameter.end;
             
             // Final validation: ensure all terms satisfy a < b <= c < d
             for (let i = 0; i < numTerms; i++) {
@@ -141,15 +169,14 @@ const InputParameterCard: React.FC<InputParameterCardProps> = ({
             }
             
             // Re-apply fixed boundaries (in case validation changed them)
-            newValues[0].a = inputParameter.start - epsilon;
+            newValues[0].a = inputParameter.start;
             newValues[0].b = inputParameter.start;
             newValues[numTerms - 1].c = inputParameter.end;
-            newValues[numTerms - 1].d = inputParameter.end + epsilon;
+            newValues[numTerms - 1].d = inputParameter.end;
             
             return newValues;
         });
-        setIsDirty(true);
-    }, [inputParameter.start, inputParameter.end]);
+    }, [inputParameter.start, inputParameter.end, localInputValues]);
 
     // Delete a term
     const handleDeleteTerm = useCallback((id: number) => {
@@ -157,35 +184,6 @@ const InputParameterCard: React.FC<InputParameterCardProps> = ({
             refetchData();
         });
     }, [refetchData]);
-
-    // Save all changes
-    const handleSaveAll = useCallback(async () => {
-        try {
-            // Save all terms
-            for (const value of localInputValues) {
-                await new Promise<void>((resolve) => {
-                    updateInputValueById(value.id, {
-                        value: value.value,
-                        a: value.a,
-                        b: value.b,
-                        c: value.c,
-                        d: value.d,
-                        is_triangle: value.is_triangle,
-                    }, () => resolve());
-                });
-            }
-            setIsDirty(false);
-            refetchData();
-        } catch (error) {
-            console.error('Failed to save input values:', error);
-        }
-    }, [localInputValues, refetchData]);
-
-    // Cancel changes
-    const handleCancel = useCallback(() => {
-        setLocalInputValues([...inputParameter.input_values]);
-        setIsDirty(false);
-    }, [inputParameter.input_values]);
 
     // Обработчик switch (перемещение терма)
     const handleSwitch = useCallback((id1: number, id2: number) => {
@@ -198,12 +196,52 @@ const InputParameterCard: React.FC<InputParameterCardProps> = ({
         <ParameterCard
             name={inputParameter.name}
             setParameter={(name: string, start: number, end: number) => {
+                const startChanged = start !== inputParameter.start;
+                const endChanged = end !== inputParameter.end;
+                const epsilon = (end - start) * 0.001;
+                
                 updateInputParameterById(inputParameter.id, {
                     name: name,
                     start: start,
                     end: end
                 }, () => { 
-                    setInputParameter({ ...inputParameter, name: name, start: start, end: end }); 
+                    setInputParameter({ ...inputParameter, name: name, start: start, end: end });
+                    
+                    // Обновить граничные термы при изменении start/end
+                    const sorted = [...localInputValues].sort((a, b) => a.a - b.a);
+                    if (sorted.length > 0) {
+                        let needsRefetch = false;
+                        if (startChanged) {
+                            // Обновить первую терму: a и b должны быть равны start
+                            const firstTerm = sorted[0];
+                            updateInputValueById(firstTerm.id, {
+                                value: firstTerm.value,
+                                a: start,
+                                b: start,
+                                c: firstTerm.c,
+                                d: firstTerm.d,
+                                is_triangle: firstTerm.is_triangle,
+                            }, () => {});
+                            needsRefetch = true;
+                        }
+                        if (endChanged) {
+                            // Обновить последнюю терму: c и d должны быть равны end
+                            const lastTerm = sorted[sorted.length - 1];
+                            updateInputValueById(lastTerm.id, {
+                                value: lastTerm.value,
+                                a: lastTerm.a,
+                                b: lastTerm.b,
+                                c: end,
+                                d: end,
+                                is_triangle: lastTerm.is_triangle,
+                            }, () => {});
+                            needsRefetch = true;
+                        }
+                        if (needsRefetch) {
+                            // Обновить данные после изменения термов
+                            setTimeout(() => refetchData(), 100);
+                        }
+                    }
                 });
             }}
             start={inputParameter.start}
@@ -211,6 +249,10 @@ const InputParameterCard: React.FC<InputParameterCardProps> = ({
             removeCallback={() => removeInputParameterById(inputParameter.id, deleteCallback)}
             isOpen={isOpen}
             setIsOpen={setIsOpen}
+            switchUpCallback={switchUpCallback}
+            switchDownCallback={switchDownCallback}
+            canSwitchUp={canSwitchUp}
+            canSwitchDown={canSwitchDown}
         >
             <FuzzyGraph start={inputParameter.start} end={inputParameter.end} units={sortedInputValues} />
             {
@@ -223,7 +265,7 @@ const InputParameterCard: React.FC<InputParameterCardProps> = ({
                         parameterEnd={inputParameter.end}
                         isFirst={index === 0}
                         isLast={index === sortedInputValues.length - 1}
-                        onValueChange={(updated: InputValueResponse, editedParam?: 'a' | 'b' | 'c' | 'd') => handleTermChange(updated, editedParam)}
+                        onValueChange={(updated: InputValueResponse) => handleTermChange(updated)}
                         onDelete={() => handleDeleteTerm(inputValue.id)}
                         onMoveUp={index > 0 ? () => handleSwitch(inputValue.id, sortedInputValues[index - 1].id) : undefined}
                         onMoveDown={index < sortedInputValues.length - 1 ? () => handleSwitch(inputValue.id, sortedInputValues[index + 1].id) : undefined}
@@ -238,12 +280,6 @@ const InputParameterCard: React.FC<InputParameterCardProps> = ({
                         }
                     )
                 }>Добавить терм</AccentButton>
-                {isDirty && (
-                    <>
-                        <AccentButton onClick={handleSaveAll}>Сохранить изменения</AccentButton>
-                        <SecondaryButton onClick={handleCancel}>Отменить</SecondaryButton>
-                    </>
-                )}
             </div>
         </ParameterCard>
     );
