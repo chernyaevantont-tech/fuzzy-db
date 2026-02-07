@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useLayoutEffect, useState, useCallback } from 'react';
 import classes from './Table.module.css';
 
 export type TableCellValue = {
@@ -13,11 +13,13 @@ export type TableProps = {
     rows: TableCellValue[][];
     onCellChange?: (row: number, col: number, value: string) => void;
     className?: string;
+    showRowNumbers?: boolean; // Show row numbers column
 };
 
 const DEFAULT_COLUMN_WIDTH = 300; // Увеличено в 2 раза (было 150)
+const ROW_NUMBER_COLUMN_WIDTH = 50;
 
-const Table: React.FC<TableProps> = ({ rows, onCellChange, className }) => {
+const Table: React.FC<TableProps> = ({ rows, onCellChange, className, showRowNumbers = false }) => {
     const cellRefs = useRef<(HTMLSelectElement | HTMLInputElement | null)[][]>([]);
     const [columnWidths, setColumnWidths] = useState<number[]>([]);
     const [resizingColumn, setResizingColumn] = useState<number | null>(null);
@@ -27,6 +29,25 @@ const Table: React.FC<TableProps> = ({ rows, onCellChange, className }) => {
         column: null
     });
     const tableRef = useRef<HTMLDivElement>(null);
+    const savedScrollRef = useRef<{ top: number; left: number } | null>(null);
+
+    // Save scroll position before rows change
+    useEffect(() => {
+        if (tableRef.current) {
+            savedScrollRef.current = {
+                top: tableRef.current.scrollTop,
+                left: tableRef.current.scrollLeft
+            };
+        }
+    });
+
+    // Restore scroll position after render
+    useLayoutEffect(() => {
+        if (tableRef.current && savedScrollRef.current) {
+            tableRef.current.scrollTop = savedScrollRef.current.top;
+            tableRef.current.scrollLeft = savedScrollRef.current.left;
+        }
+    }, [rows]);
 
     // Initialize column widths
     useEffect(() => {
@@ -200,6 +221,21 @@ const Table: React.FC<TableProps> = ({ rows, onCellChange, className }) => {
             <div className={classes.Table}>
                 {rows.map((row, rowIdx) => (
                     <div key={rowIdx} className={classes.TableRow}>
+                        {/* Row number column */}
+                        {showRowNumbers && (
+                            <div 
+                                className={`${classes.CellContainer} ${classes.RowNumberCell}`}
+                                style={{
+                                    width: `${ROW_NUMBER_COLUMN_WIDTH}px`,
+                                    minWidth: `${ROW_NUMBER_COLUMN_WIDTH}px`,
+                                    maxWidth: `${ROW_NUMBER_COLUMN_WIDTH}px`
+                                }}
+                            >
+                                <div className={`${classes.TableCell} ${classes.UneditableCell} ${classes.RowNumber}`}>
+                                    {rowIdx === 0 ? '#' : rowIdx}
+                                </div>
+                            </div>
+                        )}
                         {row.map((cell, colIdx) => {
                             const cellWidth = columnWidths[colIdx] || DEFAULT_COLUMN_WIDTH;
                             const cellStyle = {

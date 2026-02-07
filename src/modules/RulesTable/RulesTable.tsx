@@ -36,16 +36,20 @@ const RulesTable: React.FC<RulesTableProps> = ({ problemId, inputParameters, out
     const [tableRows, setTableRows] = useState<TableCellValue[][]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Load output values from backend
-    const loadOutputValues = useCallback(async () => {
+    // Load output values from backend (with optional loading indicator)
+    const loadOutputValues = useCallback(async (showLoading = true) => {
         try {
-            setIsLoading(true);
+            if (showLoading) {
+                setIsLoading(true);
+            }
             const values = await getOutputValuesByProblemId(problemId);
             setOutputValues(values);
         } catch (error) {
             console.error('Failed to load output values:', error);
         } finally {
-            setIsLoading(false);
+            if (showLoading) {
+                setIsLoading(false);
+            }
         }
     }, [problemId]);
 
@@ -166,8 +170,8 @@ const RulesTable: React.FC<RulesTableProps> = ({ problemId, inputParameters, out
                     });
                 }
 
-                // Reload output values
-                await loadOutputValues();
+                // Reload output values without showing loading indicator
+                await loadOutputValues(false);
             } catch (error) {
                 console.error('Failed to update rule:', error);
             }
@@ -197,7 +201,7 @@ const RulesTable: React.FC<RulesTableProps> = ({ problemId, inputParameters, out
 
     return (
         <div className={classes.RulesTableContainer}>
-            <Table rows={tableRows} onCellChange={handleCellChange} />
+            <Table rows={tableRows} onCellChange={handleCellChange} showRowNumbers />
         </div>
     );
 };
