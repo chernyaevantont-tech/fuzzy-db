@@ -13,17 +13,37 @@ interface UserOutputProps {
 
 // Вычисление степени принадлежности для трапециевидной функции
 // Трапеция задается четырьмя точками: a, b, c, d
-// μ(x) = 0 при x ≤ a или x ≥ d
-// μ(x) = (x-a)/(b-a) при a < x < b (левый склон)
+// μ(x) = 0 при x < a или x > d
+// μ(x) = (x-a)/(b-a) при a <= x < b (левый склон), если a != b
 // μ(x) = 1 при b ≤ x ≤ c (плато)
-// μ(x) = (d-x)/(d-c) при c < x < d (правый склон)
+// μ(x) = (d-x)/(d-c) при c < x <= d (правый склон), если c != d
+// Особые случаи для разбиения Рушпини:
+// - Первый терм: a = b (нет левого склона, плато начинается с a)
+// - Последний терм: c = d (нет правого склона, плато заканчивается на d)
 const trapezoidalMembership = (x: number, a: number, b: number, c: number, d: number): number => {
-    if (x <= a) return 0;
-    if (x >= d) return 0;
-    if (x >= b && x <= c) return 1;
-    if (x > a && x < b) return (x - a) / (b - a);
-    if (x > c && x < d) return (d - x) / (d - c);
-    return 0;
+    const epsilon = 1e-6;
+    
+    // Строго вне диапазона
+    if (x < a - epsilon || x > d + epsilon) return 0;
+    
+    // Случай a = b (первый терм разбиения Рушпини): нет левого склона
+    if (Math.abs(a - b) < epsilon) {
+        if (x <= c + epsilon) return 1; // Плато
+        // Правый склон (c < x <= d)
+        if (Math.abs(c - d) < epsilon) return 1; // c = d означает плато до d
+        return (d - x) / (d - c);
+    }
+    
+    // Случай c = d (последний терм разбиения Рушпини): нет правого склона
+    if (Math.abs(c - d) < epsilon) {
+        if (x < b - epsilon) return (x - a) / (b - a); // Левый склон
+        return 1; // Плато продолжается до d
+    }
+    
+    // Обычный трапециевидный случай
+    if (x < b) return (x - a) / (b - a); // Левый склон
+    if (x <= c) return 1; // Плато
+    return (d - x) / (d - c); // Правый склон
 };
 
 // Центроид для дефаззификации (метод центра тяжести)
