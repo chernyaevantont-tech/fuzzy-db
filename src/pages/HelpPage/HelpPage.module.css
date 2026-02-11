@@ -1,0 +1,408 @@
+.HelpPage {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    display: flex;
+    background: #ffffff;
+    margin-top: 32px;
+}
+
+.Sidebar {
+    width: 280px;
+    background: #f8f9fa;
+    border-right: 1px solid #e0e0e0;
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+
+.SidebarHeader {
+    padding: 20px 16px;
+    border-bottom: 1px solid #e0e0e0;
+    background: #ffffff;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.SidebarHeader h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+}
+
+.Navigation {
+    padding: 12px 8px;
+}
+
+.NavItem {
+    padding: 8px 12px;
+    margin: 2px 0;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #555;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.NavItem:hover {
+    background: #e8f5ea;
+    color: #2a9134;
+}
+
+.ActiveNavItem {
+    background: #2a9134;
+    color: #ffffff;
+    font-weight: 500;
+}
+
+.ActiveNavItem:hover {
+    background: #238029;
+    color: #ffffff;
+}
+
+.Content {
+    flex: 1;
+    overflow-y: auto;
+    position: relative;
+    background: #ffffff;
+}
+
+.CloseButton {
+    position: fixed;
+    top: 40px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: #f0f0f0;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: #666;
+    transition: all 0.2s ease;
+    z-index: 100;
+}
+
+.CloseButton:hover {
+    background: #e0e0e0;
+    color: #333;
+    transform: scale(1.1);
+}
+
+.ContentInner {
+    max-width: 900px;
+    padding: 40px 60px 100px 60px;
+    margin: 0 auto;
+}
+
+.ContentInner h1 {
+    font-size: 32px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0 0 24px 0;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #2a9134;
+}
+
+.ContentInner h2 {
+    font-size: 26px;
+    font-weight: 600;
+    color: #2a2a2a;
+    margin: 32px 0 16px 0;
+}
+
+.ContentInner h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #3a3a3a;
+    margin: 24px 0 12px 0;
+}
+
+.ContentInner h4 {
+    font-size: 17px;
+    font-weight: 600;
+    color: #4a4a4a;
+    margin: 20px 0 10px 0;
+}
+
+.ContentInner p {
+    font-size: 15px;
+    line-height: 1.7;
+    color: #444;
+    margin: 0 0 16px 0;
+}
+
+.ContentInner ul,
+.ContentInner ol {
+    font-size: 15px;
+    line-height: 1.7;
+    color: #444;
+    margin: 0 0 16px 0;
+    padding-left: 28px;
+}
+
+.ContentInner li {
+    margin: 8px 0;
+}
+
+.ContentInner strong {
+    font-weight: 600;
+    color: #222;
+}
+
+.ContentInner code {
+    background: #f5f5f5;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 14px;
+    color: #c7254e;
+}
+
+.CodeBlock {
+    background: #282c34;
+    color: #abb2bf;
+    padding: 20px;
+    border-radius: 8px;
+    margin: 16px 0;
+    overflow-x: auto;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.CodeBlock pre {
+    margin: 0;
+    white-space: pre;
+}
+
+.CodeBlock h4 {
+    color: #61afef;
+    margin: 0 0 12px 0;
+    font-size: 15px;
+}
+
+.Formula {
+    background: #f9f9f9;
+    padding: 16px 20px;
+    border-left: 4px solid #2a9134;
+    margin: 16px 0;
+    border-radius: 4px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.8;
+    text-align: center;
+}
+
+.Formula pre {
+    margin: 0;
+    color: #333;
+}
+
+.Table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.Table thead {
+    background: #f0f0f0;
+}
+
+.Table th {
+    padding: 12px 8px;
+    text-align: left;
+    font-weight: 600;
+    color: #333;
+    border-bottom: 2px solid #ddd;
+}
+
+.Table td {
+    padding: 10px 8px;
+    border-bottom: 1px solid #eee;
+    color: #555;
+}
+
+.Table tbody tr:hover {
+    background: #f9f9f9;
+}
+
+.Tip {
+    background: #e8f5e9;
+    border-left: 4px solid #4caf50;
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-radius: 4px;
+}
+
+.Tip strong {
+    color: #2e7d32;
+}
+
+.Warning {
+    background: #fff3e0;
+    border-left: 4px solid #ff9800;
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-radius: 4px;
+}
+
+.Warning strong {
+    color: #e65100;
+}
+
+.Info {
+    background: #e3f2fd;
+    border-left: 4px solid #2196f3;
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-radius: 4px;
+}
+
+.Info strong {
+    color: #1565c0;
+}
+
+.TreeView {
+    background: #f9f9f9;
+    padding: 20px;
+    border-left: 4px solid #2a9134;
+    margin: 16px 0;
+    border-radius: 4px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 14px;
+}
+
+.TreeItem {
+    padding: 4px 0;
+    display: flex;
+    align-items: center;
+}
+
+.TreeItem span {
+    margin-left: 8px;
+}
+
+.TermDiagram {
+    background: #282c34;
+    padding: 20px;
+    border-radius: 8px;
+    margin: 16px 0;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    color: #abb2bf;
+}
+
+.TermDiagram .TermLine {
+    padding: 4px 0;
+    display: flex;
+    align-items: center;
+}
+
+.TermDiagram .Label {
+    color: #98c379;
+    min-width: 80px;
+}
+
+.TermDiagram .Range {
+    color: #61afef;
+    margin-left: 10px;
+}
+
+.TermDiagram .Name {
+    color: #e5c07b;
+    margin-left: 10px;
+}
+
+.Success {
+    background: #f1f8f4;
+    border-left: 4px solid #0ac97f;
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-radius: 4px;
+    font-size: 15px;
+}
+
+.Success strong {
+    color: #078a55;
+}
+
+.Example {
+    background: #fafafa;
+    border: 1px solid #e0e0e0;
+    padding: 20px;
+    border-radius: 8px;
+    margin: 20px 0;
+}
+
+.Example h4 {
+    margin-top: 0;
+    color: #2a9134;
+}
+
+.Welcome {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 24px;
+    border-radius: 12px;
+    margin: 24px 0;
+}
+
+.Welcome h3 {
+    color: white;
+    margin-top: 0;
+}
+
+.Welcome p {
+    color: rgba(255,255,255,0.95);
+}
+
+.QuickLink {
+    background: white;
+    color: #667eea;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-top: 12px;
+}
+
+.QuickLink:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+/* Scrollbar styles */
+.Sidebar::-webkit-scrollbar,
+.Content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.Sidebar::-webkit-scrollbar-track,
+.Content::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.Sidebar::-webkit-scrollbar-thumb,
+.Content::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.Sidebar::-webkit-scrollbar-thumb:hover,
+.Content::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
