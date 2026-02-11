@@ -25,7 +25,7 @@ interface CreateProblemModalProps {
 }
 
 const CreateProblemModal: React.FC<CreateProblemModalProps> = ({ isShown, prevProblemId, createProblemCallback, closeCallback }) => {
-    const [name, setName] = useState<string>("Новый параметр");
+    const [name, setName] = useState<string>("Новая задача");
     const [description, setDescription] = useState<string>("");
     const [uintArrayImage, setUintArrayImage] = useState<Uint8Array>(new Uint8Array);
     const [imageFormat, setImageFormat] = useState<string>("");

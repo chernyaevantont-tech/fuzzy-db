@@ -42,7 +42,13 @@ const ProblemCard: React.FC<ProblemCardProps> = ({
     }, [imageId])
 
     return <div className={`${classes.Card} ${className || ""}`}>
-        <UintArrayImage uintArrayImage={image.imageData} imageFormat={image.imageFormat} className={classes.Image} />
+        <div className={classes.ImageWrapper} onClick={() => addProblemIdToPathCallback(id, name, isFinal)}>
+            <UintArrayImage 
+                uintArrayImage={image.imageData} 
+                imageFormat={image.imageFormat} 
+                className={classes.Image}
+            />
+        </div>
         <div className={classes.Content}>
             <div className={classes.CardTop}>
                 <div className={classes.Tag}>

@@ -16,6 +16,10 @@
     background-color: var(--background-color);
 }
 
+.ImageWrapper {
+    cursor: pointer;
+}
+
 .Content {
     flex-grow: 1;
     min-width: 0;
@@ -39,6 +43,7 @@
     min-width: 0;
     max-width: 100%;
     word-break: break-all;
+    cursor: pointer;
 }
 
 .Description {
