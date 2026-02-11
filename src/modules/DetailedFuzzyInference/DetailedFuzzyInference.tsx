@@ -96,6 +96,24 @@ const DetailedFuzzyInference: React.FC<DetailedFuzzyInferenceProps> = ({
         }
     };
 
+    // Проверка заполненности всех правил
+    const checkRulesComplete = (): { isComplete: boolean; totalRules: number; filledRules: number } => {
+        // Вычисляем количество ожидаемых правил (произведение количеств термов всех входных параметров)
+        let totalRules = 1;
+        inputParameters.forEach((param) => {
+            totalRules *= param.input_values.length;
+        });
+
+        // Подсчитываем фактически заполненные правила
+        const filledRules = rules.filter(rule => rule.fuzzy_output_value_id !== null).length;
+
+        return {
+            isComplete: filledRules === totalRules && totalRules > 0,
+            totalRules,
+            filledRules
+        };
+    };
+
     const performInference = () => {
         if (inputParameters.length === 0 || outputParameters.length === 0) {
             return null;
@@ -261,6 +279,8 @@ const DetailedFuzzyInference: React.FC<DetailedFuzzyInferenceProps> = ({
         );
     }
 
+    const rulesStatus = checkRulesComplete();
+
     return (
         <div className={classes.Container}>
             <div className={classes.InputSection}>
@@ -285,9 +305,16 @@ const DetailedFuzzyInference: React.FC<DetailedFuzzyInferenceProps> = ({
                 </div>
             </div>
 
+            {!rulesStatus.isComplete && (
+                <div className={classes.ValidationWarning}>
+                    ⚠️ Не все правила в таблице правил заполнены. Заполнено {rulesStatus.filledRules} из {rulesStatus.totalRules} правил. Перейдите на вкладку "Таблица выходных значений" и заполните все правила.
+                </div>
+            )}
+
             <button
                 className={classes.CalculateButton}
                 onClick={() => setShowCalculations(true)}
+                disabled={!rulesStatus.isComplete}
             >
                 Выполнить нечёткий вывод
             </button>

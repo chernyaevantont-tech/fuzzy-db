@@ -94,6 +94,24 @@ const UserOutput: React.FC<UserOutputProps> = ({
         }
     };
 
+    // Проверка заполненности всех правил
+    const checkRulesComplete = (): { isComplete: boolean; totalRules: number; filledRules: number } => {
+        // Вычисляем количество ожидаемых правил (произведение количеств термов всех входных параметров)
+        let totalRules = 1;
+        inputParameters.forEach((param) => {
+            totalRules *= param.input_values.length;
+        });
+
+        // Подсчитываем фактически заполненные правила
+        const filledRules = rules.filter(rule => rule.fuzzy_output_value_id !== null).length;
+
+        return {
+            isComplete: filledRules === totalRules && totalRules > 0,
+            totalRules,
+            filledRules
+        };
+    };
+
     const calculate = () => {
         if (inputParameters.length === 0 || outputParameters.length === 0) {
             return;
@@ -218,6 +236,8 @@ const UserOutput: React.FC<UserOutputProps> = ({
         );
     }
 
+    const rulesStatus = checkRulesComplete();
+
     return (
         <div className={classes.Container}>
             <div className={classes.InputSection}>
@@ -242,7 +262,17 @@ const UserOutput: React.FC<UserOutputProps> = ({
                 </div>
             </div>
 
-            <button className={classes.CalculateButton} onClick={calculate}>
+            {!rulesStatus.isComplete && (
+                <div className={classes.ValidationWarning}>
+                    ⚠️ Не все правила в таблице правил заполнены. Заполнено {rulesStatus.filledRules} из {rulesStatus.totalRules} правил. Перейдите на вкладку "Таблица выходных значений" и заполните все правила.
+                </div>
+            )}
+
+            <button 
+                className={classes.CalculateButton} 
+                onClick={calculate}
+                disabled={!rulesStatus.isComplete}
+            >
                 Рассчитать
             </button>
 
