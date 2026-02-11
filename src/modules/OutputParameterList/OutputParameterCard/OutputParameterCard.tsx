@@ -197,7 +197,6 @@ const OutputParameterCard: React.FC<OutputParameterCardProps> = ({
             setParameter={(name: string, start: number, end: number) => {
                 const startChanged = start !== outputParameter.start;
                 const endChanged = end !== outputParameter.end;
-                const epsilon = (end - start) * 0.001;
                 
                 updateOutputParameterById(outputParameter.id, {
                     name: name,

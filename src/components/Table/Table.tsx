@@ -148,7 +148,7 @@ const Table: React.FC<TableProps> = ({ rows, onCellChange, className, showRowNum
             setResizingColumn(null);
         };
 
-        const handleMouseUp = (e: MouseEvent) => {
+        const handleMouseUp = () => {
             console.log('Mouse up detected!');
             cleanup();
         };

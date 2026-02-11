@@ -1,8 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { UpdateProblemRequest } from '../../../types/problem';
 import classes from './UpdateProblemModal.module.css';
-import { UpdateImageRequest } from '../../../types/image';
-import { getImageById } from '../../../api/image/getImageById';
 import UintArrayImage from '../../../ui/images/UintArrayImage/UintArrayImage';
 import SecondaryButton from '../../../ui/buttons/SecondaryButton/SecondaryButton';
 import AccentButton from '../../../ui/buttons/AccentButton/AccentButton';
@@ -36,11 +34,9 @@ const UpdateProblemModal: React.FC<UpdateProblemModalProps> = ({
     id,
     name,
     description,
-    imageId,
     uintArrayImage,
     imageFormat,
     updateProblemCallback,
-    updateImageCallback,
     closeCallback
 }) => {
     const [updateRequest, setUpdateRequest] = useState<UpdateProblemRequest>({ name: name, description: description });

@@ -214,7 +214,9 @@ const DetailedFuzzyInference: React.FC<DetailedFuzzyInferenceProps> = ({
             const step = (outParam.end - outParam.start) / resolution;
 
             // Для каждой точки x в диапазоне выходного параметра
-            for (let x = outParam.start; x <= outParam.end; x += step) {
+            // Используем цикл по индексу для точного совпадения с backend (ровно resolution+1 точек)
+            for (let i = 0; i <= resolution; i++) {
+                const x = outParam.start + i * step;
                 let mu = 0;
                 // Объединяем все выходные термы через max (OR-операция)
                 outParam.fuzzy_output_values.forEach((fov) => {

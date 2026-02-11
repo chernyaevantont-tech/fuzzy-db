@@ -183,7 +183,9 @@ const UserOutput: React.FC<UserOutputProps> = ({
             const resolution = 100;
             const step = (outParam.end - outParam.start) / resolution;
 
-            for (let x = outParam.start; x <= outParam.end; x += step) {
+            // Используем цикл по индексу для точного совпадения с backend (ровно resolution+1 точек)
+            for (let i = 0; i <= resolution; i++) {
+                const x = outParam.start + i * step;
                 let mu = 0;
                 outParam.fuzzy_output_values.forEach((fov) => {
                     const ruleStrength = aggregatedOutputs[outParam.id][fov.id] || 0;

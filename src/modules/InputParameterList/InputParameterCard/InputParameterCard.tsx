@@ -198,7 +198,6 @@ const InputParameterCard: React.FC<InputParameterCardProps> = ({
             setParameter={(name: string, start: number, end: number) => {
                 const startChanged = start !== inputParameter.start;
                 const endChanged = end !== inputParameter.end;
-                const epsilon = (end - start) * 0.001;
                 
                 updateInputParameterById(inputParameter.id, {
                     name: name,
