@@ -73,7 +73,7 @@ const ProblemCard: React.FC<ProblemCardProps> = ({
                     <div className={classes.MoreMenu}>
                         <button onClick={editCallback}>Изменить</button>
                         <button onClick={() => {
-                            exportProblemById(id);
+                            exportProblemById(id, name);
                             setMenuIsOpen(false);
                         }}>Экспорт</button>
                         <button onClick={() => removeProblemById(id, () => removeProblemByIdCallback(id))}>Удалить</button>

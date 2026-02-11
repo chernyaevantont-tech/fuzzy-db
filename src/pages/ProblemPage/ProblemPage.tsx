@@ -84,7 +84,7 @@ const ProblemPage = () => {
                                         setInputParameters(prev =>
                                             [...prev, {
                                                 id: id,
-                                                name: "Новый параметр",
+                                                name: "Новый входной параметр",
                                                 problem_id: prevProblem!.id,
                                                 input_values: [],
                                                 start: 0,
@@ -107,7 +107,7 @@ const ProblemPage = () => {
                                         setOutputParameters(prev =>
                                             [...prev, {
                                                 id: id,
-                                                name: "Новый параметр",
+                                                name: "Новый выходной параметр",
                                                 problem_id: prevProblem!.id,
                                                 fuzzy_output_values: [],
                                                 start: 0,

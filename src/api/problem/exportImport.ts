@@ -3,7 +3,7 @@ import { writeTextFile, readTextFile } from '@tauri-apps/plugin-fs';
 import { invoke } from '@tauri-apps/api/core';
 import { ExportedProblem } from '../../types/export_import';
 
-export const exportProblemById = async (id: number) => {
+export const exportProblemById = async (id: number, name?: string) => {
     try {
         const data = await invoke<ExportedProblem>('export_problem', { id });
         const json = JSON.stringify(data, null, 2);
@@ -11,8 +11,9 @@ export const exportProblemById = async (id: number) => {
         const path = await save({
             filters: [{
                 name: 'Fuzzy DB Problem',
-                extensions: ['json']
-            }]
+                extensions: ['fuzzy']
+            }],
+            defaultPath: name ? `${name}.fuzzy` : undefined
         });
         
         if (path) {
@@ -31,7 +32,7 @@ export const importProblemToParent = async (parentId: number | null, onFinish?: 
         const result = await open({
             filters: [{
                 name: 'Fuzzy DB Problem',
-                extensions: ['json']
+                extensions: ['fuzzy']
             }],
             multiple: false
         });
