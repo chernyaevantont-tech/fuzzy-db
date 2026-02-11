@@ -113,13 +113,13 @@ impl SqliteProblemRepository {
         let image_id: Option<i64> = stmt
             .query_row(params![id], |row| row.get(0))
             .map_err(|e| DomainError::Internal(e.to_string()))?;
+        conn.execute("DELETE FROM problem WHERE id = ?", &[&id])
+            .map_err(|e| DomainError::Internal(e.to_string()))?;
+
         if let Some(image_id) = image_id {
             conn.execute("DELETE FROM image WHERE id = ?", params![image_id])
                 .map_err(|e| DomainError::Internal(e.to_string()))?;
         }
-
-        conn.execute("DELETE FROM problem WHERE id = ?", &[&id])
-            .map_err(|e| DomainError::Internal(e.to_string()))?;
 
         Ok(())
     }
@@ -397,33 +397,85 @@ impl ProblemRepository for SqliteProblemRepository {
         self.deep_delete(id, &conn)
     }
 
-    fn update_by_id(&self, id: i64, model: &Problem) -> Result<(), DomainError> {
-        let conn = self
+    fn update_by_id(&self, id: i64, model: &Problem) -> Result<Option<i64>, DomainError> {
+        let mut conn = self
             .conn
             .lock()
             .map_err(|e| DomainError::Internal(e.to_string()))?;
-        let mut stmt = conn.prepare("UPDATE problem SET is_final = ?, name = ?, description = ?, image_id = ?, updated_id = ? WHERE id = ?")
-        .map_err(|e| DomainError::Internal(e.to_string()))?;
+        let transaction = conn
+            .transaction()
+            .map_err(|e| DomainError::Internal(e.to_string()))?;
 
-        let time = Utc::now().to_rfc3339();
+        // Handle image update logic
+        // 1. If model.image is SOME, it means we are setting a NEW image.
+        //    We need to insert it and use its ID.
+        //    We should also probably delete the old image if it existed...
+        //    But we don't know the old image ID easily unless we query for it, OR assume model.image_id
+        //    holds the old ID if we haven't changed it yet?
+        //    Actually, simpler: Let's query the current image_id first.
 
-        stmt.execute(params![
-            &model.is_final,
-            &model.name,
-            &model.description,
-            &model.image_id,
-            &time,
-            &id,
-        ])
-        .map_err(|e| match e.sqlite_error_code() {
-            None => DomainError::Internal(e.to_string()),
-            Some(error_code) => match error_code {
-                ErrorCode::NotFound => DomainError::NotFound(e.to_string()),
-                _ => DomainError::Internal(e.to_string()),
-            },
-        })?;
+        let mut stmt = transaction
+            .prepare("SELECT image_id FROM problem WHERE id = ?")
+            .map_err(|e| DomainError::Internal(e.to_string()))?;
+        
+        // Manual optional handling to avoid dependency on OptionalExtension trait if not imported
+        let old_image_id: Option<i64> = match stmt.query_row(params![id], |row| row.get(0)) {
+            Ok(val) => val,
+            Err(rusqlite::Error::QueryReturnedNoRows) => None,
+            Err(e) => return Err(DomainError::Internal(e.to_string())),
+        };
+        // Drop statement to release borrow on transaction
+        drop(stmt);
 
-        Ok(())
+        let new_image_id = if let Some(image) = &model.image {
+            // Insert new image
+            let mut stmt = transaction
+                .prepare("INSERT INTO image (image_data, image_format) VALUES (?, ?)")
+                .map_err(|e| DomainError::Internal(e.to_string()))?;
+            stmt.execute(params![&image.image_data, &image.image_format])
+                .map_err(|e| DomainError::Internal(e.to_string()))?;
+            Some(transaction.last_insert_rowid())
+        } else {
+            // Keep existing image_id from the model (which might be None if deleted, or some ID if unchanged)
+            model.image_id
+        };
+
+        {
+            let mut stmt = transaction.prepare("UPDATE problem SET is_final = ?, name = ?, description = ?, image_id = ?, updated_at = ? WHERE id = ?")
+            .map_err(|e| DomainError::Internal(e.to_string()))?;
+
+            let time = Utc::now().to_rfc3339();
+
+            stmt.execute(params![
+                &model.is_final,
+                &model.name,
+                &model.description,
+                &new_image_id,
+                &time,
+                &id,
+            ])
+            .map_err(|e| match e.sqlite_error_code() {
+                None => DomainError::Internal(e.to_string()),
+                Some(error_code) => match error_code {
+                    ErrorCode::NotFound => DomainError::NotFound(e.to_string()),
+                    _ => DomainError::Internal(e.to_string()),
+                },
+            })?;
+        }
+
+        if old_image_id != new_image_id {
+             if let Some(old_id) = old_image_id {
+                 // But wait, if we are just "keeping" the image, new_image_id == old_image_id.
+                 // If we are replacing, new_image_id (new) != old_image_id (old). Delete old.
+                 // If we are deleting, new_image_id (None) != old_image_id (Some). Delete old.
+                 transaction.execute("DELETE FROM image WHERE id = ?", params![old_id])
+                    .map_err(|e| DomainError::Internal(e.to_string()))?;
+             }
+        }
+
+        transaction.commit().map_err(|e| DomainError::Internal(e.to_string()))?;
+
+        Ok(new_image_id)
     }
 
     fn is_final(&self, id: i64) -> Result<bool, DomainError> {

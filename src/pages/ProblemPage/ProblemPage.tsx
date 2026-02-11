@@ -46,7 +46,8 @@ const ProblemPage = () => {
     const location = useLocation();
 
     const fetchData = useCallback(() => {
-        getFullProblemById(prevProblem?.id ?? 0, (resp: ProblemFullResponse) => {
+        if (!prevProblem) return;
+        getFullProblemById(prevProblem.id, (resp: ProblemFullResponse) => {
             setInputParameters(resp.input_parameters);
             setOutputParameters(resp.output_parameters);
         });

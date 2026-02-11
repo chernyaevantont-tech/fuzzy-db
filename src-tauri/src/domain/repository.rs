@@ -12,7 +12,7 @@ pub trait ProblemRepository: Send + Sync {
     fn get_full_by_id(&self, id: i64) -> Result<Problem, DomainError>;
     fn create(&self, model: &Problem) -> Result<(i64, Option<i64>), DomainError>;
     fn remove_by_id(&self, id: i64) -> Result<(), DomainError>;
-    fn update_by_id(&self, id: i64, model: &Problem) -> Result<(), DomainError>;
+    fn update_by_id(&self, id: i64, model: &Problem) -> Result<Option<i64>, DomainError>;
     fn is_final(&self, id: i64) -> Result<bool, DomainError>;
 }
 

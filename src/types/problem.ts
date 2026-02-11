@@ -41,7 +41,13 @@ export type CreateProblemResponse = {
     image_id: number | null;
 }
 
+export type ImageUpdateAction = 
+    | { type: 'no_change' }
+    | { type: 'delete' }
+    | { type: 'set', data: CreateImageRequest };
+
 export type UpdateProblemRequest = {
     name: string;
     description: string;
+    image_update: ImageUpdateAction;
 }

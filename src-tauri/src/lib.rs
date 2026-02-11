@@ -22,6 +22,7 @@ pub fn run() {
             create_problem,
             get_all_problems_by_prev_problem_id,
             remove_problem_by_id,
+            update_problem_by_id,
             get_image_by_id,
             get_full_problem_by_id,
             create_input_parameter,

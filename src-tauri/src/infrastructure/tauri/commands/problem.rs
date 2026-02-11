@@ -8,11 +8,12 @@ use crate::{
             get_full_by_id::GetFullByIdUseCase
         },
     },
+    domain::entities::image::Image,
     infrastructure::{
         state::AppState,
         tauri::dtos::problem_dtos::{
-            CreateProblemRequest, ProblemCreateResponse, ProblemFullResponse, ProblemResponse,
-            UpdateProblemRequest,
+            CreateProblemRequest, ImageUpdateAction, ProblemCreateResponse, ProblemFullResponse,
+            ProblemResponse, UpdateProblemRequest,
         },
     },
 };
@@ -68,10 +69,24 @@ pub fn update_problem_by_id(
     id: i64,
     update_request: UpdateProblemRequest,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<Option<i64>, String> {
     let use_case = UpdateByIdUseCase::new(state.problem_repository.as_ref());
-    use_case
-        .execute(id, &update_request.to_entity())
+
+    let (delete_image, new_image) = match &update_request.image_update {
+        ImageUpdateAction::NoChange => (false, None),
+        ImageUpdateAction::Delete => (true, None),
+        ImageUpdateAction::Set(img) => (
+            true,
+            Some(Image {
+                id: 0,
+                image_data: img.image_data.clone(),
+                image_format: img.image_format.clone(),
+            }),
+        ),
+    };
+
+    let image_id = use_case
+        .execute(id, &update_request.to_entity(), delete_image, new_image)
         .map_err(|e| e.to_string())?;
-    Ok(())
+    Ok(image_id)
 }

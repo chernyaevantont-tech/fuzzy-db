@@ -122,9 +122,21 @@ pub struct ProblemCreateResponse {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "type", content = "data")]
+pub enum ImageUpdateAction {
+    #[serde(rename = "no_change")]
+    NoChange,
+    #[serde(rename = "delete")]
+    Delete,
+    #[serde(rename = "set")]
+    Set(CreateImageRequest),
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct UpdateProblemRequest {
     pub name: String,
     pub description: String,
+    pub image_update: ImageUpdateAction,
 }
 impl UpdateProblemRequest {
     pub fn to_entity(&self) -> Problem {
@@ -140,7 +152,14 @@ impl UpdateProblemRequest {
             input_parameters: Vec::<InputParameter>::new(),
             output_parameters: Vec::<OutputParameter>::new(),
             output_values: Vec::<OutputValue>::new(),
-            image: None,
+            image: match &self.image_update {
+                ImageUpdateAction::Set(image) => Some(Image {
+                    id: 0,
+                    image_data: image.image_data.to_owned(),
+                    image_format: image.image_format.to_owned(),
+                }),
+                _ => None,
+            },
         }
     }
 }

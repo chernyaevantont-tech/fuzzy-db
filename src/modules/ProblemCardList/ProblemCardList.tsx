@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import CreateProblemModal from './CreateProblemModal/CreateProblemModal';
+import EditProblemModal from './EditProblemModal/EditProblemModal';
 import classes from './ProblemCardList.module.css';
 import { ProblemResponse } from '../../types/problem';
 import ProblemCard from '../../components/ProblemCard/ProblemCard';
@@ -17,6 +18,7 @@ const ProblemCardList: React.FC<ProblemCardListProps> = ({
     toggleProblemModalCallback,
 }) => {
     const [problems, setProblems] = useState<Array<ProblemResponse>>([]);
+    const [editingProblem, setEditingProblem] = useState<ProblemResponse | null>(null);
     const { prevProblem, addProblem } = useProblemPathContext();
 
     const navigate = useNavigate();
@@ -39,6 +41,7 @@ const ProblemCardList: React.FC<ProblemCardListProps> = ({
                         addProblem({ id, name, isFinal });
                         if (isFinal) navigate("problem");
                     }}
+                    editCallback={() => setEditingProblem(problem)}
                     removeProblemByIdCallback={(id: number) => setProblems(prev => prev.filter(problem => problem.id != id))}
                     key={problem.id}
                 />)}
@@ -67,6 +70,19 @@ const ProblemCardList: React.FC<ProblemCardListProps> = ({
                     }])
                 }}
                 closeCallback={toggleProblemModalCallback}
+            />
+            <EditProblemModal
+                isShown={editingProblem != null}
+                problem={editingProblem}
+                editProblemCallback={(id, name, description, imageId) => {
+                    setProblems(prev => prev.map(p => {
+                        if (p.id === id) {
+                            return { ...p, name, description, image_id: imageId };
+                        }
+                        return p;
+                    }))
+                }}
+                closeCallback={() => setEditingProblem(null)}
             />
         </>
     );

@@ -14,6 +14,7 @@ interface ProblemCardProps {
     imageId: number | null;
     addProblemIdToPathCallback: (id: number, name: string, isFinal: boolean) => void;
     removeProblemByIdCallback: (id: number) => void;
+    editCallback: () => void;
     className?: string;
 }
 
@@ -25,14 +26,19 @@ const ProblemCard: React.FC<ProblemCardProps> = ({
     imageId,
     removeProblemByIdCallback,
     addProblemIdToPathCallback,
+    editCallback,
     className
 }) => {
     const [image, setImage] = useState<{ imageData: Uint8Array, imageFormat: string }>({ imageData: new Uint8Array, imageFormat: "" })
     const [menuIsOpen, setMenuIsOpen] = useState<boolean>(false);
 
     useEffect(() => {
-        if (imageId != null) getImageById(imageId, resp => setImage({ imageData: Uint8Array.from(resp.image_data), imageFormat: resp.image_format }))
-    }, [])
+        if (imageId != null) {
+            getImageById(imageId, resp => setImage({ imageData: Uint8Array.from(resp.image_data), imageFormat: resp.image_format }))
+        } else {
+            setImage({ imageData: new Uint8Array, imageFormat: "" });
+        }
+    }, [imageId])
 
     return <div className={`${classes.Card} ${className || ""}`}>
         <UintArrayImage uintArrayImage={image.imageData} imageFormat={image.imageFormat} className={classes.Image} />
@@ -58,7 +64,7 @@ const ProblemCard: React.FC<ProblemCardProps> = ({
                     }
                 >
                     <div className={classes.MoreMenu}>
-                        <button>Изменить</button>
+                        <button onClick={editCallback}>Изменить</button>
                         <button onClick={() => removeProblemById(id, () => removeProblemByIdCallback(id))}>Удалить</button>
                     </div>
                 </DropdownMenu>
