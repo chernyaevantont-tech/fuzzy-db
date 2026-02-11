@@ -5,6 +5,7 @@ import DropdownMenu from '../../ui/separators/DropdownMenu/DropdownMenu';
 import { FiMoreVertical } from 'react-icons/fi';
 import { getImageById } from '../../api/image/getImageById';
 import { removeProblemById } from '../../api/problem/removeProblemById';
+import { exportProblemById } from '../../api/problem/exportImport';
 
 interface ProblemCardProps {
     id: number;
@@ -65,6 +66,10 @@ const ProblemCard: React.FC<ProblemCardProps> = ({
                 >
                     <div className={classes.MoreMenu}>
                         <button onClick={editCallback}>Изменить</button>
+                        <button onClick={() => {
+                            exportProblemById(id);
+                            setMenuIsOpen(false);
+                        }}>Экспорт</button>
                         <button onClick={() => removeProblemById(id, () => removeProblemByIdCallback(id))}>Удалить</button>
                     </div>
                 </DropdownMenu>

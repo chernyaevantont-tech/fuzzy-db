@@ -16,6 +16,10 @@
     "core:window:allow-close",
     "core:webview:allow-create-webview-window",
     "fs:default",
+    "fs:allow-write-text-file",
+    "fs:allow-read-text-file",
+    "fs:allow-home-read-recursive",
+    "fs:allow-home-write-recursive",
     "dialog:default"
   ]
 }

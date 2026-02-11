@@ -3,20 +3,52 @@ use tauri::State;
 use crate::{
     application::use_cases::{
         problem::{
-            create::CreateProblemUseCase, get_all_by_prev_problem_id::GetAllByPrevProblemIdUseCase,
+            create::CreateProblemUseCase, export_problem::ExportProblemUseCase,
+            get_all_by_prev_problem_id::GetAllByPrevProblemIdUseCase,
+            get_full_by_id::GetFullByIdUseCase, import_problem::ImportProblemUseCase,
             remove_by_id::RemoveByIdUseCase, update_by_id::UpdateByIdUseCase,
-            get_full_by_id::GetFullByIdUseCase
         },
     },
     domain::entities::image::Image,
     infrastructure::{
         state::AppState,
-        tauri::dtos::problem_dtos::{
-            CreateProblemRequest, ImageUpdateAction, ProblemCreateResponse, ProblemFullResponse,
-            ProblemResponse, UpdateProblemRequest,
+        tauri::dtos::{
+            export_import_dtos::ExportedProblem,
+            problem_dtos::{
+                CreateProblemRequest, ImageUpdateAction, ProblemCreateResponse, ProblemFullResponse,
+                ProblemResponse, UpdateProblemRequest,
+            },
         },
     },
 };
+
+#[tauri::command]
+pub fn export_problem(id: i64, state: State<'_, AppState>) -> Result<ExportedProblem, String> {
+    let use_case = ExportProblemUseCase::new(
+        state.problem_repository.as_ref(),
+        state.image_repository.as_ref(),
+    );
+
+    use_case.execute(id).map_err(|e: crate::domain::error::DomainError| e.to_string())
+}
+
+#[tauri::command]
+pub fn import_problem(
+    parent_id: Option<i64>,
+    data: ExportedProblem,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let use_case = ImportProblemUseCase::new(
+        state.problem_repository.as_ref(),
+        state.input_parameter_repository.as_ref(),
+        state.input_value_repository.as_ref(),
+        state.output_parameter_repository.as_ref(),
+        state.fuzzy_output_value_repository.as_ref(),
+        state.output_value_repository.as_ref(),
+    );
+
+    use_case.execute(parent_id, data).map_err(|e| e.to_string())
+}
 
 #[tauri::command]
 pub fn get_all_problems_by_prev_problem_id(

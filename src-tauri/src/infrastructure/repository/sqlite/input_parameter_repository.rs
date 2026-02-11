@@ -63,6 +63,21 @@ impl InputParameterRepository for SqliteInputParameterRepository {
         Ok(new_id)
     }
 
+    fn create_raw(&self, problem_id: i64, model: &InputParameter) -> Result<i64, DomainError> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| DomainError::Internal(e.to_string()))?;
+
+        let mut stmt = conn
+            .prepare("INSERT INTO input_parameter (problem_id, name, start, end) VALUES (?, ?, ?, ?)")
+            .map_err(|e| DomainError::Internal(e.to_string()))?;
+        stmt.execute(params![&problem_id, &model.name, &model.start, &model.end])
+            .map_err(|e| DomainError::Internal(e.to_string()))?;
+
+        Ok(conn.last_insert_rowid())
+    }
+
     fn remove_by_id(&self, id: i64) -> Result<(), DomainError> {
         let mut conn = self
             .conn

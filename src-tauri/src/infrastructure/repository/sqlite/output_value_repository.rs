@@ -20,9 +20,11 @@ impl OutputValueRepository for SqliteOutputValueRepository {
     fn create(&self, model: &OutputValue) -> Result<i64, DomainError> {
         let conn = self.conn.lock()
             .map_err(|e| DomainError::Internal(e.to_string()))?;
+        
         let mut stmt = conn
             .prepare("INSERT INTO output_value (output_parameter_id, fuzzy_output_value_id, input_value_ids) VALUES (?, ?, ?)")
             .map_err(|e| DomainError::Internal(e.to_string()))?;
+            
         stmt.execute(params![
             &model.output_parameter_id,
             &model.fuzzy_output_value_id,

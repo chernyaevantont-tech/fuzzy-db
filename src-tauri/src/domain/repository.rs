@@ -24,6 +24,7 @@ pub trait ImageRepository: Send + Sync {
 pub trait InputParameterRepository: Send + Sync {
     fn get_by_id(&self, id: i64) -> Result<InputParameter, DomainError>;
     fn create(&self, problem_id: i64, model: &InputParameter) -> Result<i64, DomainError>;
+    fn create_raw(&self, problem_id: i64, model: &InputParameter) -> Result<i64, DomainError>;
     fn remove_by_id(&self, id: i64) -> Result<(), DomainError>;
     fn update_by_id(&self, id: i64, model: &InputParameter) -> Result<(), DomainError>;
     fn switch(&self, id_1: i64, id_2: i64) -> Result<(), DomainError>;
@@ -32,6 +33,7 @@ pub trait InputParameterRepository: Send + Sync {
 pub trait InputValueRepository: Send + Sync {
     fn get_by_input_parameter_id(&self, input_parameter_id: i64) -> Result<Vec<InputValue>, DomainError>;
     fn create(&self, model: &InputValue) -> Result<i64, DomainError>;
+    fn create_raw(&self, model: &InputValue) -> Result<i64, DomainError>;
     fn remove_by_id(&self, id: i64) -> Result<(), DomainError>;
     fn update_by_id(&self, id: i64, model: &InputValue) -> Result<(), DomainError>;
     fn switch(&self, id_1: i64, id_2: i64) -> Result<(), DomainError>;
@@ -40,6 +42,7 @@ pub trait InputValueRepository: Send + Sync {
 pub trait OutputParameterRepository: Send + Sync {
     fn get_by_id(&self, id: i64) -> Result<OutputParameter, DomainError>;
     fn create(&self, problem_id: i64, model: &OutputParameter) -> Result<i64, DomainError>;
+    fn create_raw(&self, problem_id: i64, model: &OutputParameter) -> Result<i64, DomainError>;
     fn remove_by_id(&self, id: i64) -> Result<(), DomainError>;
     fn update_by_id(&self, id: i64, model: &OutputParameter) -> Result<(), DomainError>;
     fn switch(&self, id_1: i64, id_2: i64) -> Result<(), DomainError>;
@@ -48,6 +51,7 @@ pub trait OutputParameterRepository: Send + Sync {
 pub trait FuzzyOutputValueRepository: Send + Sync {
     fn get_by_output_parameter_id(&self, output_parameter_id: i64) -> Result<Vec<FuzzyOutputValue>, DomainError>;
     fn create(&self, model: &FuzzyOutputValue) -> Result<i64, DomainError>;
+    fn create_raw(&self, model: &FuzzyOutputValue) -> Result<i64, DomainError>;
     fn remove_by_id(&self, id: i64) -> Result<(), DomainError>;
     fn update_by_id(&self, id: i64, model: &FuzzyOutputValue) -> Result<(), DomainError>;
     fn switch(&self, id_1: i64, id_2: i64) -> Result<(), DomainError>;

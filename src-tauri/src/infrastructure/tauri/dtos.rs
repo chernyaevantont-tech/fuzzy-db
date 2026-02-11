@@ -1,3 +1,4 @@
+pub mod export_import_dtos;
 pub mod fuzzy_inference_dtos;
 pub mod fuzzy_output_value_dtos;
 pub mod image_dtos;

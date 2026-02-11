@@ -182,6 +182,30 @@ impl FuzzyOutputValueRepository for SqliteFuzzyOutputValueRepository {
         }
     }
 
+    fn create_raw(&self, model: &FuzzyOutputValue) -> Result<i64, DomainError> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| DomainError::Internal(e.to_string()))?;
+        
+        let mut stmt = conn
+            .prepare("INSERT INTO fuzzy_output_value (output_parameter_id, value, a, b, c, d, is_triangle) VALUES (?, ?, ?, ?, ?, ?, ?)")
+            .map_err(|e| DomainError::Internal(e.to_string()))?;
+        
+        stmt.execute(params![
+            &model.output_parameter_id,
+            &model.value,
+            &model.a,
+            &model.b,
+            &model.c,
+            &model.d,
+            &model.is_triangle
+        ])
+        .map_err(|e| DomainError::Internal(e.to_string()))?;
+
+        Ok(conn.last_insert_rowid())
+    }
+
     fn remove_by_id(&self, id: i64) -> Result<(), DomainError> {
         let mut conn = self
             .conn

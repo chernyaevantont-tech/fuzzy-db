@@ -20,6 +20,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             create_problem,
+            export_problem,
+            import_problem,
             get_all_problems_by_prev_problem_id,
             remove_problem_by_id,
             update_problem_by_id,

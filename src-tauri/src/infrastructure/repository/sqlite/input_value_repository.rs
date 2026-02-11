@@ -290,6 +290,30 @@ impl InputValueRepository for SqliteInputValueRepository {
         }
     }
 
+    fn create_raw(&self, model: &InputValue) -> Result<i64, DomainError> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| DomainError::Internal(e.to_string()))?;
+        
+        let mut stmt = conn
+            .prepare("INSERT INTO input_value (input_parameter_id, value, a, b, c, d, is_triangle) VALUES (?, ?, ?, ?, ?, ?, ?)")
+            .map_err(|e| DomainError::Internal(e.to_string()))?;
+        
+        stmt.execute(params![
+            &model.input_parameter_id,
+            &model.value,
+            &model.a,
+            &model.b,
+            &model.c,
+            &model.d,
+            &model.is_triangle
+        ])
+        .map_err(|e| DomainError::Internal(e.to_string()))?;
+
+        Ok(conn.last_insert_rowid())
+    }
+
     fn remove_by_id(&self, id: i64) -> Result<(), DomainError> {
         let mut conn = self
             .conn

@@ -3,6 +3,9 @@ import { useEffect, useState } from "react"
 import { Outlet } from "react-router-dom";
 import classes from './AppTitle.module.css';
 import { BsDashLg, BsWindowFullscreen, BsWindowStack, BsXLg } from "react-icons/bs";
+import { BiHelpCircle } from "react-icons/bi";
+import { GiHelp } from "react-icons/gi";
+import { GrHelp } from "react-icons/gr";
 
 const AppTitle: React.FC = () => {
     const [appWindow, _] = useState(Window.getCurrent());
@@ -25,7 +28,6 @@ const AppTitle: React.FC = () => {
         <>
             <header className={`${classes.AppTitle} ${maximizedFlag ? classes.AppTitleMaximized : ""}`}>
                 <div className={classes.Left} data-tauri-drag-region>
-                    
                 </div>
                 <div className={classes.Right} data-tauri-drag-region>
                     <BsDashLg onClick={() =>  appWindow.minimize()} className={classes.Icon}/>
