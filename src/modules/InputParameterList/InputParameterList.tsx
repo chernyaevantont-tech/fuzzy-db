@@ -48,7 +48,7 @@ const InputParameterList: React.FC<InputParameterListProps> = ({
                             setInputParameters(newInputParameters.filter(x => x.id != id));
                         }}
                         refetchData={refetchData}
-                        isOpen={openCards[inputParameter.id] ?? false}
+                        isOpen={openCards[inputParameter.id] ?? true}
                         setIsOpen={(open) => setOpenCards({ ...openCards, [inputParameter.id]: open })}
                         switchUpCallback={index > 0 ? () => handleSwitchUp(inputParameter.id, inputParameters[index - 1].id) : undefined}
                         switchDownCallback={index < inputParameters.length - 1 ? () => handleSwitchDown(inputParameter.id, inputParameters[index + 1].id) : undefined}

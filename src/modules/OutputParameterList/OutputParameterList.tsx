@@ -48,7 +48,7 @@ const OutputParameterList: React.FC<OutputParameterListProps> = ({
                             setOutputParameters(newOutputParameters.filter(x => x.id != id));
                         }}
                         refetchData={refetchData}
-                        isOpen={openCards[outputParameter.id] ?? false}
+                        isOpen={openCards[outputParameter.id] ?? true}
                         setIsOpen={(open) => setOpenCards({ ...openCards, [outputParameter.id]: open })}
                         switchUpCallback={index > 0 ? () => handleSwitchUp(outputParameter.id, outputParameters[index - 1].id) : undefined}
                         switchDownCallback={index < outputParameters.length - 1 ? () => handleSwitchDown(outputParameter.id, outputParameters[index + 1].id) : undefined}
