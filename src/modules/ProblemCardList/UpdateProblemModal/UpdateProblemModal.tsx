@@ -39,7 +39,11 @@ const UpdateProblemModal: React.FC<UpdateProblemModalProps> = ({
     updateProblemCallback,
     closeCallback
 }) => {
-    const [updateRequest, setUpdateRequest] = useState<UpdateProblemRequest>({ name: name, description: description });
+    const [updateRequest, setUpdateRequest] = useState<UpdateProblemRequest>({ 
+        name: name, 
+        description: description,
+        image_update: { type: 'no_change' }
+    });
     const [updateImageRequest, setUpdateImageRequest] = useState<{ uintArrayImage: Uint8Array, imageFormat: string } | null>(null);
 
     const getImage = async () => {
