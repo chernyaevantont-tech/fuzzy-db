@@ -96,11 +96,15 @@ const UserOutput: React.FC<UserOutputProps> = ({
 
     // Проверка заполненности всех правил
     const checkRulesComplete = (): { isComplete: boolean; totalRules: number; filledRules: number } => {
-        // Вычисляем количество ожидаемых правил (произведение количеств термов всех входных параметров)
-        let totalRules = 1;
+        // Вычисляем количество комбинаций входов (произведение количеств термов всех входных параметров)
+        let inputCombinations = 1;
         inputParameters.forEach((param) => {
-            totalRules *= param.input_values.length;
+            inputCombinations *= param.input_values.length;
         });
+
+        // Общее количество правил = комбинации входов × количество выходных параметров
+        // Для каждой комбинации входов должно быть правило для каждого выходного параметра
+        const totalRules = inputCombinations * outputParameters.length;
 
         // Подсчитываем фактически заполненные правила
         const filledRules = rules.filter(rule => rule.fuzzy_output_value_id !== null).length;
